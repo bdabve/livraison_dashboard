@@ -62,3 +62,36 @@ def sum_by_driver(clean_df, fields):
     driver_stats = driver_stats.sort_values(by="VERSEMENT", ascending=False)
     driver_stats = driver_stats.set_index("LIVREUR")
     return driver_stats
+
+
+def driver_retour(clean_df):
+    """
+    Calculate the difference between 'T. COMMANDE' and 'T.LOGICIEL'
+    and return detailed rows + sum grouped by livreur.
+    """
+    df = clean_df.copy()
+    df["RETOUR"] = df["T. COMMANDE"] - df["T.LOGICIEL"]
+
+    retour = df[["DATE", "LIVREUR", "T. COMMANDE", "T.LOGICIEL", "RETOUR"]].dropna().copy()
+    # Format DATE
+    retour["DATE"] = retour["DATE"].dt.strftime("%d/%m/%Y")
+
+    # === TOTAL ROW ===
+    total_row = {
+        "DATE": "",
+        "LIVREUR": "TOTAL",
+        "T. COMMANDE": retour["T. COMMANDE"].sum(),
+        "T.LOGICIEL": retour["T.LOGICIEL"].sum(),
+        "RETOUR": retour["RETOUR"].sum(),
+    }
+
+    # Append total row
+    retour = pd.concat([retour, pd.DataFrame([total_row])], ignore_index=True)
+
+    sum_retour_by_driver = (
+        retour.groupby("LIVREUR")["RETOUR"]
+        .sum()
+        .reset_index()
+    )
+
+    return retour, sum_retour_by_driver
