@@ -95,3 +95,32 @@ def driver_retour(clean_df):
     )
 
     return retour, sum_retour_by_driver
+
+
+def show_day_details(clean_df, day, fields):
+    """
+    Show details for a specific day
+    :clean_df: DataFrame
+    :day: str or datetime [YYYY-MM-DD]
+    :fields: list of fields to sum
+    """
+    daily_details = clean_df.groupby(["DATE", "LIVREUR"])[fields].sum()
+    daily_details = daily_details.sort_values(by="T.LOGICIEL", ascending=False)
+
+    daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
+    # Convert input to datetime
+    day = pd.to_datetime(day).normalize()
+
+    if day in daily_details.index.get_level_values("DATE"):
+        return daily_details.loc[day].reset_index()
+    else:
+        return "No data"
+
+
+def driver_observations(clean_df):
+    """
+    Generate observations for each driver based on their performance.
+    :clean_df: DataFrame
+    """
+    driver_obs = clean_df.groupby(["LIVREUR"])["OBSERVATION"].sum()
+    return driver_obs.reset_index()

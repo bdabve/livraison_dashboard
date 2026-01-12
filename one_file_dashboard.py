@@ -19,8 +19,14 @@ st.space()
 
 # Load the dataframe with pandas and cache it with streamlit to avoid reload again and again
 @st.cache_data
-def load_data_from_excel(excel_file):
-    df = pd.read_excel(excel_file, sheet_name="DECEMBRE", usecols="A:H", nrows=243)
+def load_excel_sheets(excel_file):
+    xls = pd.ExcelFile(excel_file)
+    return xls.sheet_names
+
+
+@st.cache_data
+def load_data_from_excel(excel_file, sheet_name):
+    df = pd.read_excel(excel_file, sheet_name=sheet_name, usecols="A:H", nrows=243)
     df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
     numeric_columns = ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF"]
 
@@ -28,11 +34,11 @@ def load_data_from_excel(excel_file):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # df["OBSERVATION"] = df["OBSERVATION"].astype(str)
     # Remove rows without a valid DATE (e.g. subtotal / footer rows)
     df = df[df["DATE"].notna()]
-    df = df.fillna(0)
     df["OBSERVATION"] = df["OBSERVATION"].astype(str)
+    df["OBSERVATION"] = df["OBSERVATION"].replace("nan", "")
+    df = df.fillna(0)
     return df
 
 
@@ -45,8 +51,17 @@ excel_file = st.file_uploader(
 if not excel_file:
     st.warning("Please upload an Excel file to proceed.")
     st.stop()
+else:
+    f = pd.ExcelFile(excel_file)
+    sheets = f.sheet_names
+    sheet_name = st.selectbox("Sélectionner la feuille Excel:", sheets)
+    st.session_state.sheet_name = {"sheet_name": sheet_name}
 
-df = load_data_from_excel(excel_file)
+if st.session_state.get("sheet_name"):
+    df = load_data_from_excel(excel_file, sheet_name)
+else:
+    st.warning("Please select a sheet to proceed.")
+    st.stop()
 
 # ------- Side Bar -------
 st.sidebar.header('Filtré:')
@@ -220,13 +235,44 @@ def day_details():
         st.rerun()
 
 
+st.write("Cliquer sur le bouton pour voir les détails par jour.")
+st.button("Voir Détails Journalier", on_click=day_details)
 if "day_details" not in st.session_state:
-    st.write("Cliquer sur le bouton pour voir les détails par jour.")
-    st.button("Voir Détails Journalier", on_click=day_details)
+    # st.stop()
+    pass
 else:
     date = st.session_state.day_details["day_details"]
     st.subheader(f"📅 _Détails pour le {date.strftime('%d/%m/%Y')}_", divider="gray", width="content")
 
+    day_details = utils.show_day_details(df, date, ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"])
+    st.dataframe(
+        day_details,
+        column_config={"DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY")},
+        hide_index=True,
+        width="stretch"
+    )
+st.divider()
+
+# ---------------------------------------------
+# ---- Observations ----
+# ----------------------
+st.subheader("🧾 Les Observations", divider="gray", width="content")
+observations = utils.driver_observations(df)
+option = st.selectbox(
+    "Sélectionner le livreur pour voir les observations:",
+    options=observations["LIVREUR"].unique()
+)
+filtered_observations = observations[observations["LIVREUR"] == option]
+st.markdown(f"##### Observations pour le livreur: {option}")
+for obs in filtered_observations["OBSERVATION"]:
+    parts = obs.split("•")
+    cleaned_lines = []
+    for part in parts:
+        part = part.strip()
+        if part:
+            cleaned_lines.append(part)
+    st.markdown("\n- ".join(cleaned_lines))
+    # st.code(f"- {obs}")
 # hide some stylesheet
 # hide_st_style = '''
 # <style>
