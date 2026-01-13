@@ -19,12 +19,6 @@ st.space()
 
 # Load the dataframe with pandas and cache it with streamlit to avoid reload again and again
 @st.cache_data
-def load_excel_sheets(excel_file):
-    xls = pd.ExcelFile(excel_file)
-    return xls.sheet_names
-
-
-@st.cache_data
 def load_data_from_excel(excel_file, sheet_name):
     df = pd.read_excel(excel_file, sheet_name=sheet_name, usecols="A:H", nrows=243)
     df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
@@ -258,21 +252,29 @@ st.divider()
 # ----------------------
 st.subheader("🧾 Les Observations", divider="gray", width="content")
 observations = utils.driver_observations(df)
-option = st.selectbox(
-    "Sélectionner le livreur pour voir les observations:",
-    options=observations["LIVREUR"].unique()
-)
-filtered_observations = observations[observations["LIVREUR"] == option]
-st.markdown(f"##### Observations pour le livreur: {option}")
-for obs in filtered_observations["OBSERVATION"]:
-    parts = obs.split("•")
-    cleaned_lines = []
-    for part in parts:
-        part = part.strip()
-        if part:
-            cleaned_lines.append(part)
-    st.markdown("\n- ".join(cleaned_lines))
-    # st.code(f"- {obs}")
+options_column, display_column = st.columns([0.4, 0.6], border=True, gap="small")
+with options_column:
+    option = st.selectbox(
+        "Sélectionner le livreur pour voir les observations:",
+        options=observations["LIVREUR"].unique()
+    )
+with display_column:
+    filtered_observations = observations[observations["LIVREUR"] == option]
+    st.markdown(f"##### Observations pour le livreur: {option}")
+    for obs in filtered_observations["OBSERVATION"]:
+        parts = obs.split("•")
+        cleaned_lines = []
+        for part in parts:
+            part = part.strip()
+            if part:
+                cleaned_lines.append(part)
+        try:
+            cleaned_lines[0] = f"- {cleaned_lines[0]}"
+            st.markdown("\n- ".join(cleaned_lines))
+        except IndexError:
+            st.markdown("- Aucune observation.")
+
+
 # hide some stylesheet
 # hide_st_style = '''
 # <style>
