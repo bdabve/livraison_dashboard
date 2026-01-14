@@ -7,6 +7,12 @@
 # ----------------------------------------------------------------------------
 import pandas as pd
 
+MONTHS_NAMES = {
+    "JANVIER": 1, "FÉVRIER": 2, "MARS": 3, "AVRIL": 4,
+    "MAI": 5, "JUIN": 6, "JUILLET": 7, "AOÛT": 8,
+    "SEPTEMBRE": 9, "OCTOBRE": 10, "NOVEMBRE": 11, "DECEMBRE": 12
+}
+
 
 def clean_dataframe(df):
     try:
@@ -76,7 +82,6 @@ def sum_by_driver(clean_df, fields, livreur_selection=["AMINE", "TOUFIK", "REDA"
     # --- TOTAL PAR LIVREUR SUMMARY ---
     driver_stats = clean_df.groupby("LIVREUR", as_index=False)[fields].sum()
     driver_stats = driver_stats[driver_stats["LIVREUR"].isin(livreur_selection)]
-    driver_stats = driver_stats.sort_values(by="VERSEMENT", ascending=False)
     driver_stats = driver_stats.set_index("LIVREUR")
     return driver_stats
 
@@ -114,7 +119,7 @@ def driver_retour(clean_df):
     return retour, sum_retour_by_driver
 
 
-def show_day_details(clean_df, day, fields):
+def get_day_details(clean_df, day, fields):
     """
     Show details for a specific day
     :clean_df: DataFrame
@@ -123,12 +128,13 @@ def show_day_details(clean_df, day, fields):
     """
     daily_details = clean_df.groupby(["DATE", "LIVREUR"])[fields].sum()
     # daily_details = daily_details.sort_values(by="T.LOGICIEL", ascending=False)
-
     # daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
+
     # Convert input to datetime
     day = pd.to_datetime(day).normalize()
 
     if day in daily_details.index.get_level_values("DATE"):
+        # TODO: return selected livreur
         return {"success": True, "data": daily_details.loc[day].reset_index()}
     else:
         return {"success": False, "data": "No data"}

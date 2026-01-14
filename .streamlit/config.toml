@@ -1,0 +1,8 @@
+[theme]
+font="Monaco"
+base="dark"
+primaryColor="forestGreen"
+#borderColor="powderBlue"
+
+[theme.sidebar]
+primaryColor="forestGreen"

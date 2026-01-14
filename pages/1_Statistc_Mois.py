@@ -10,6 +10,7 @@ import pandas as pd
 import utils
 import plotly.express as px
 import streamlit as st
+import widgets
 
 # Page configuration
 st.set_page_config(page_title="Livraison Dashboard", page_icon=":bar_chart:", layout="wide")
@@ -37,6 +38,7 @@ if not excel_file:
 else:
     f = pd.ExcelFile(excel_file)
     sheets = f.sheet_names
+    st.space("medium")
     sheet_name = st.selectbox("Sélectionner la feuille Excel:", sheets)
     st.session_state.sheet_name = {"sheet_name": sheet_name}
 
@@ -52,22 +54,27 @@ else:
     st.stop()
 
 # ------- Side Bar -------
+st.sidebar.header(f"**{sheet_name}**", text_alignment="center")
+st.sidebar.divider()
+
 st.sidebar.header('Filtré:')
 
-livreur = st.sidebar.multiselect(
+livreur = st.sidebar.pills(
     'LIVREUR:',
     options=df['LIVREUR'].unique(),
-    default=df['LIVREUR'].unique()
+    default=df['LIVREUR'].unique(),
+    selection_mode="multi",
+    key="livreur"
 )
 
 # Filter data based on selection
-df_selection = df.query('LIVREUR == @livreur')
+# df_selection = df.query('LIVREUR == @livreur')
 
 # ----------------------------------------------------
 # Etat Journalier
 # ---------------
 st.space()
-etat_excel = utils.etat_excel_like_db(df_selection)
+etat_excel = utils.etat_excel_like_db(df)
 
 st.subheader("💰 _Etat Mensuel_", text_alignment="left", divider="gray", width="stretch")
 data_column, fig_etat_column = st.columns(2)
@@ -127,28 +134,12 @@ st.divider()
 # ------------------------
 st.space()
 st.subheader("🚚 _Etat Versement Par Livreur_", divider="gray", width="content")
-livreur_selection = st.multiselect(
-    'Sélectionner les livreurs à afficher:',
-    options=df['LIVREUR'].unique(),
-    default=df['LIVREUR'].unique(),
-    width=500
-)
-# Display Result in 2 Columns
-table_column, fig_livreur_column = st.columns(2)
+sum_by_driver = utils.sum_by_driver(df, fields, livreur_selection=livreur)
 
-sum_by_driver = utils.sum_by_driver(df, fields, livreur_selection=livreur_selection)
 # Graphique Versement par Livreur
 if len(sum_by_driver) == 0:
     st.warning("Aucun livreur sélectionné.")
 else:
-    with table_column:
-        # display the table result
-        st.space("large")
-        st.dataframe(
-            sum_by_driver,
-            column_config={"DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY")},
-            width="stretch"
-        )
     # Create the figure
     fig_livreur = px.histogram(
         sum_by_driver,
@@ -160,12 +151,13 @@ else:
         template="plotly_white",
     )
     # display the chart
-    fig_livreur_column.plotly_chart(fig_livreur, width="stretch")
+    widgets.table_fig_columns(sum_by_driver.reset_index(), fig_livreur)
 
 st.divider()
 
 # ------------------------------
 # Versement Livreur Pourcentage
+# -----------------------
 sum_by_driver = sum_by_driver.reset_index()
 
 versement_pourcent, commande_pourcent = st.columns(2)
@@ -175,7 +167,7 @@ with versement_pourcent:
         sum_by_driver,
         names="LIVREUR",
         values="VERSEMENT",
-        title="<b>Pourcentage de Versement par Livreur</b>",
+        title="<b>Pourcentage de Versement.</b>",
         template="plotly_white",
     )
     st.plotly_chart(fig_pourcent, width="stretch")
@@ -186,7 +178,7 @@ with commande_pourcent:
         sum_by_driver,
         names="LIVREUR",
         values="T.LOGICIEL",
-        title="<b>Pourcentage des Commandes par Livreur</b>",
+        title="<b>Pourcentage des Commandes.</b>",
         template="plotly_white",
     )
     st.plotly_chart(cmd_fig_pourcent, width="stretch")
@@ -196,27 +188,28 @@ st.divider()
 # ---------------------------------------------------------------------------------
 # ---- Retour ----
 # ----------------
-driver_retour, sum_retour_by_driver = utils.driver_retour(df)
-sum_retour_by_driver = sum_retour_by_driver[sum_retour_by_driver["LIVREUR"].isin(["AMINE", "TOUFIK", "REDA"])]
 st.subheader("🔄 _Etat Retours Par Livreur_", divider="gray", width="content")
+# retour_livreur_selection = st.pills(
+    # 'Sélectionner les livreurs à afficher:',
+    # options=df['LIVREUR'].unique(),
+    # # default=df['LIVREUR'].unique(),
+    # selection_mode="multi",
+    # key="retour_livreur_selection",
+    # # width=500
+# )
+# st.info("Le retour est calculé comme la différence entre 'T. COMMANDE' et 'T.LOGICIEL'.")
+st.code("Le retour est calculé comme la différence entre 'T. COMMANDE' et 'T.LOGICIEL'.", language="markdown")
+driver_retour, sum_retour_by_driver = utils.driver_retour(df)
+sum_retour_by_driver = sum_retour_by_driver[sum_retour_by_driver["LIVREUR"].isin(livreur)]
 
-sum_retour_column, fig_retour_column = st.columns(2)
-with sum_retour_column:
-    st.space("large")
-    st.dataframe(
-        sum_retour_by_driver,
-        hide_index=True,
-        width="stretch"
-    )
-
-fig_retour = px.pie(
+retour_chart = px.pie(
     sum_retour_by_driver,
     names="LIVREUR",
     values="RETOUR",
-    title="<b>Retour par Livreur</b>",
+    # title="<b>Retour par Livreur</b>",
     template="plotly_white",
 )
-fig_retour_column.plotly_chart(fig_retour, width="stretch")
+widgets.table_fig_columns(sum_retour_by_driver, retour_chart)
 st.divider()
 
 
@@ -227,16 +220,19 @@ st.divider()
 def day_details():
     import datetime
     st.write("Entrée la date:")
-    date = st.date_input("Date:", datetime.date(2025, 12, 1))
+    month_num = utils.MONTHS_NAMES.get(sheet_name)
+    date = st.date_input("Date:", datetime.date(2025, month_num, 1))
     if st.button("Submit"):
         st.session_state.day_details = {"day_details": date}
         st.rerun()
 
 
-label_column, button_column = st.columns([0.3, 0.3])
+label_column, button_column = st.columns([0.7, 0.3], vertical_alignment="bottom")
 with label_column:
-    st.write("Cliquer sur le bouton pour voir les détails par jour.")
+    st.subheader("📅 _Détails Journée_", divider="gray", width="content")
+    # st.write("Cliquer sur le bouton pour voir les détails par jour.")
 with button_column:
+    st.space("small")
     st.button("Sélectionner Le Jour.", on_click=day_details)
 
 # Proccessing
@@ -244,14 +240,17 @@ if "day_details" not in st.session_state:
     pass
 else:
     date = st.session_state.day_details["day_details"]
-    st.subheader(f"📅 _Détails pour le {date.strftime('%d/%m/%Y')}_", divider="gray", width="content")
-
-    fields = st.multiselect(
+    # st.subheader(f"📅 _Détails pour le {}_", divider="gray", width="content")
+    st.space("medium")
+    fields = st.pills(
         "Sélectionner les champs à afficher:",
         options=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"],
-        default=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"]
+        default=["VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"],
+        selection_mode="multi"
     )
-    day_details = utils.show_day_details(df, date, fields)
+    st.space()
+    st.markdown(f"#### Le {date.strftime('%d/%m/%Y')}", text_alignment="right")
+    day_details = utils.get_day_details(df, date, fields)
     if not day_details["success"]:
         st.warning("Aucune donnée pour cette date.")
     else:
