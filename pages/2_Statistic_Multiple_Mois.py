@@ -1,5 +1,23 @@
 import streamlit as st
 import pandas as pd
+import utils
+
+
+@st.cache_data
+def load_date_from_excel(excel_file, selected_months):
+    dfs = []
+    for month in selected_months:
+        data = utils.clean_dataframe(pd.read_excel(excel_file, sheet_name=month, usecols="A:H"))
+        if data["success"]:
+            dfs.append(data["df"])
+        else:
+            return {"success": False, "message": data["message"]}
+    try:
+        dfs = pd.concat(dfs, ignore_index=True)
+    except ValueError:
+        return {"success": False, "message": "Aucun mois sélectionné."}
+    else:
+        return {"success": True, "data": dfs}
 
 
 # Page configuration
@@ -21,8 +39,14 @@ else:
     months = f.sheet_names
     selected_months = st.multiselect("Select months", months, default=months)
 
-dfs = [pd.read_excel(excel_file, sheet_name=m) for m in selected_months]
-df_all = pd.concat(dfs, ignore_index=True)
 
+data = load_date_from_excel(excel_file, selected_months)
+if not data["success"]:
+    st.warning(data["message"])
+    st.stop()
+else:
+    dfs = data["data"]
+
+# ------- Side Bar -------
 st.subheader("Global statistics")
-st.dataframe(df_all.describe())
+st.dataframe(dfs.describe())

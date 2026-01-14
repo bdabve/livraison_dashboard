@@ -8,6 +8,23 @@
 import pandas as pd
 
 
+def clean_dataframe(df):
+    try:
+        df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
+    except KeyError:
+        return {"success": False, "message": "La colonne 'DATE' est manquante dans le fichier Excel."}
+
+    numeric_columns = ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF"]
+    for col in numeric_columns:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df = df[df["DATE"].notna()]     # Remove rows without a valid DATE (e.g. subtotal / footer rows)
+    df["OBSERVATION"] = df["OBSERVATION"].astype(str).replace("nan", "")
+    df = df.fillna(0)
+    return {"success": True, "df": df}
+
+
 def etat_excel_like_db(clean_df):
     """
     this function return
@@ -50,7 +67,7 @@ def etat_journalier(clean_df, fields):
     return etat_journalier.reset_index()
 
 
-def sum_by_driver(clean_df, fields):
+def sum_by_driver(clean_df, fields, livreur_selection=["AMINE", "TOUFIK", "REDA", "MOHAMED"]):
     """
     ETAT TOTAL BY LIVREUR
     clean_df: DataFrame
@@ -58,7 +75,7 @@ def sum_by_driver(clean_df, fields):
     """
     # --- TOTAL PAR LIVREUR SUMMARY ---
     driver_stats = clean_df.groupby("LIVREUR", as_index=False)[fields].sum()
-    driver_stats = driver_stats[driver_stats["LIVREUR"].isin(["AMINE", "TOUFIK", "REDA", "MOHAMED"])]
+    driver_stats = driver_stats[driver_stats["LIVREUR"].isin(livreur_selection)]
     driver_stats = driver_stats.sort_values(by="VERSEMENT", ascending=False)
     driver_stats = driver_stats.set_index("LIVREUR")
     return driver_stats
@@ -105,16 +122,16 @@ def show_day_details(clean_df, day, fields):
     :fields: list of fields to sum
     """
     daily_details = clean_df.groupby(["DATE", "LIVREUR"])[fields].sum()
-    daily_details = daily_details.sort_values(by="T.LOGICIEL", ascending=False)
+    # daily_details = daily_details.sort_values(by="T.LOGICIEL", ascending=False)
 
-    daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
+    # daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
     # Convert input to datetime
     day = pd.to_datetime(day).normalize()
 
     if day in daily_details.index.get_level_values("DATE"):
-        return daily_details.loc[day].reset_index()
+        return {"success": True, "data": daily_details.loc[day].reset_index()}
     else:
-        return "No data"
+        return {"success": False, "data": "No data"}
 
 
 def driver_observations(clean_df):

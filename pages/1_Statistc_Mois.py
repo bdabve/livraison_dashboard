@@ -21,19 +21,8 @@ st.space()
 @st.cache_data
 def load_data_from_excel(excel_file, sheet_name):
     df = pd.read_excel(excel_file, sheet_name=sheet_name, usecols="A:H", nrows=243)
-    df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
-    numeric_columns = ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF"]
-
-    for col in numeric_columns:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    # Remove rows without a valid DATE (e.g. subtotal / footer rows)
-    df = df[df["DATE"].notna()]
-    df["OBSERVATION"] = df["OBSERVATION"].astype(str)
-    df["OBSERVATION"] = df["OBSERVATION"].replace("nan", "")
-    df = df.fillna(0)
-    return df
+    data = utils.clean_dataframe(df)
+    return data
 
 
 # Load data
@@ -52,7 +41,12 @@ else:
     st.session_state.sheet_name = {"sheet_name": sheet_name}
 
 if st.session_state.get("sheet_name"):
-    df = load_data_from_excel(excel_file, sheet_name)
+    data = load_data_from_excel(excel_file, sheet_name)
+    if not data["success"]:
+        st.warning(data["message"])
+        st.stop()
+    else:
+        df = data["df"]
 else:
     st.warning("Please select a sheet to proceed.")
     st.stop()
@@ -133,30 +127,40 @@ st.divider()
 # ------------------------
 st.space()
 st.subheader("🚚 _Etat Versement Par Livreur_", divider="gray", width="content")
-sum_by_driver = utils.sum_by_driver(df_selection, fields)
-
-# Graphique Versement par Livreur
-fig_livreur = px.histogram(
-    sum_by_driver,
-    x=sum_by_driver.index,
-    y=["VERSEMENT", "CHARGE"],
-    barmode="group",
-    # title="<b>Versement par Livreur</b>",
-    text_auto=True,
-    template="plotly_white",
+livreur_selection = st.multiselect(
+    'Sélectionner les livreurs à afficher:',
+    options=df['LIVREUR'].unique(),
+    default=df['LIVREUR'].unique(),
+    width=500
 )
-
 # Display Result in 2 Columns
 table_column, fig_livreur_column = st.columns(2)
-with table_column:
-    st.space("large")
-    st.dataframe(
-        sum_by_driver,
-        column_config={"DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY")},
-        width="stretch"
-    )
 
-fig_livreur_column.plotly_chart(fig_livreur, width="stretch")  # Display the charts
+sum_by_driver = utils.sum_by_driver(df, fields, livreur_selection=livreur_selection)
+# Graphique Versement par Livreur
+if len(sum_by_driver) == 0:
+    st.warning("Aucun livreur sélectionné.")
+else:
+    with table_column:
+        # display the table result
+        st.space("large")
+        st.dataframe(
+            sum_by_driver,
+            column_config={"DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY")},
+            width="stretch"
+        )
+    # Create the figure
+    fig_livreur = px.histogram(
+        sum_by_driver,
+        x=sum_by_driver.index,
+        y=["VERSEMENT", "CHARGE"],
+        barmode="group",
+        # title="<b>Versement par Livreur</b>",
+        text_auto=True,
+        template="plotly_white",
+    )
+    # display the chart
+    fig_livreur_column.plotly_chart(fig_livreur, width="stretch")
 
 st.divider()
 
@@ -229,22 +233,35 @@ def day_details():
         st.rerun()
 
 
-st.write("Cliquer sur le bouton pour voir les détails par jour.")
-st.button("Voir Détails Journalier", on_click=day_details)
+label_column, button_column = st.columns([0.3, 0.3])
+with label_column:
+    st.write("Cliquer sur le bouton pour voir les détails par jour.")
+with button_column:
+    st.button("Sélectionner Le Jour.", on_click=day_details)
+
+# Proccessing
 if "day_details" not in st.session_state:
-    # st.stop()
     pass
 else:
     date = st.session_state.day_details["day_details"]
     st.subheader(f"📅 _Détails pour le {date.strftime('%d/%m/%Y')}_", divider="gray", width="content")
 
-    day_details = utils.show_day_details(df, date, ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"])
-    st.dataframe(
-        day_details,
-        column_config={"DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY")},
-        hide_index=True,
-        width="stretch"
+    fields = st.multiselect(
+        "Sélectionner les champs à afficher:",
+        options=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"],
+        default=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"]
     )
+    day_details = utils.show_day_details(df, date, fields)
+    if not day_details["success"]:
+        st.warning("Aucune donnée pour cette date.")
+    else:
+        day_details = day_details["data"]
+        st.dataframe(
+            day_details,
+            column_config={"DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY")},
+            hide_index=True,
+            width="stretch"
+        )
 st.divider()
 
 # ---------------------------------------------
