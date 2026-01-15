@@ -36,19 +36,27 @@ def etat_excel_like_db(clean_df):
     this function return
     ["ACCOMTE", "CREDIT", "VERSEMENT CREDIT", "CHARGE"] to display in QLabel Excel Etat
     """
+    versement = clean_df.groupby(["DATE"])[["VERSEMENT"]].sum()
+    total_command = clean_df.groupby(["DATE"])[["T.LOGICIEL"]].sum()
     charges = clean_df.groupby(["DATE"])[["CHARGE"]].sum()
-    charges = charges["CHARGE"].sum()
 
     # --- Sum VERSEMENT by LIVREUR ---
     vers_by_livreur = clean_df.groupby("LIVREUR", as_index=False)["VERSEMENT"].sum()
     livreur = vers_by_livreur[vers_by_livreur["LIVREUR"].isin(["ACCOMPTE", "CREDIT", "VERS. CREDIT"])]
     livreur = livreur.set_index("LIVREUR")
+
+    retour = clean_df.copy()
+    retour["RETOUR"] = retour["T. COMMANDE"] - retour["T.LOGICIEL"]
+    total_retour = retour.groupby("LIVREUR", as_index=False)["RETOUR"].sum()
     # Extract values safely
     etat_excel = {
         "ACCOMPTE": float(livreur["VERSEMENT"].get("ACCOMPTE", 0)),
         "CREDIT": float(livreur["VERSEMENT"].get("CREDIT", 0)),
         "VERS. CREDIT": float(livreur["VERSEMENT"].get("VERS. CREDIT", 0)),
-        "CHARGES": float(charges),
+        "VERSEMENT": float(versement["VERSEMENT"].sum()),
+        "TOTAL COMMANDE": float(total_command["T.LOGICIEL"].sum()),
+        "CHARGES": float(charges["CHARGE"].sum()),
+        "RETOUR": float(total_retour.set_index("LIVREUR").get("RETOUR", {}).sum()),
     }
     return etat_excel
 
@@ -110,11 +118,7 @@ def driver_retour(clean_df):
     # Append total row
     retour = pd.concat([retour, pd.DataFrame([total_row])], ignore_index=True)
 
-    sum_retour_by_driver = (
-        retour.groupby("LIVREUR")["RETOUR"]
-        .sum()
-        .reset_index()
-    )
+    sum_retour_by_driver = (retour.groupby("LIVREUR")["RETOUR"].sum().reset_index())
 
     return retour, sum_retour_by_driver
 
@@ -128,7 +132,7 @@ def get_day_details(clean_df, day, fields):
     """
     daily_details = clean_df.groupby(["DATE", "LIVREUR"])[fields].sum()
     # daily_details = daily_details.sort_values(by="T.LOGICIEL", ascending=False)
-    # daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
+    daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
 
     # Convert input to datetime
     day = pd.to_datetime(day).normalize()

@@ -27,10 +27,7 @@ def load_data_from_excel(excel_file, sheet_name):
 
 
 # Load data
-excel_file = st.file_uploader(
-    "Télécharger le fichier Excel de Livraison",
-    type=["xlsx"]
-)
+excel_file = st.file_uploader("Télécharger le fichier Excel de Livraison", type=["xlsx"])
 
 if not excel_file:
     st.warning("Please upload an Excel file to proceed.")
@@ -57,8 +54,8 @@ else:
 st.sidebar.header(f"**{sheet_name}**", text_alignment="center")
 st.sidebar.divider()
 
+# Filter by Livreur
 st.sidebar.header('Filtré:')
-
 livreur = st.sidebar.pills(
     'LIVREUR:',
     options=df['LIVREUR'].unique(),
@@ -70,39 +67,51 @@ livreur = st.sidebar.pills(
 # Filter data based on selection
 # df_selection = df.query('LIVREUR == @livreur')
 
-# ----------------------------------------------------
-# Etat Journalier
-# ---------------
+# ----------------------
+# ---- Etat Mensuel ----
+# ----------------------
 st.space()
 etat_excel = utils.etat_excel_like_db(df)
 
 st.subheader("💰 _Etat Mensuel_", text_alignment="left", divider="gray", width="stretch")
-data_column, fig_etat_column = st.columns(2)
 
-with data_column:
-    st.space("large")
-    st.markdown(f"""
-        ##### *CRÉDIT:* :orange[💲 {etat_excel['CREDIT']}]
-        ##### VERSEMENT CRÉDIT : :green[💵 {etat_excel['VERS. CREDIT']}]
-        ##### *ACCOMPTE:* :grey[💲 {etat_excel['ACCOMPTE']}]
-        ##### *CHARGES:* :red[💲 {etat_excel['CHARGES']}]""")
+credit_column, versement_credit_column, acompte_column = st.columns(3)      # Columns
+credit_column.error(f"*CRÉDIT:* {etat_excel.get('CREDIT', 0)}", icon="💲")
+versement_credit_column.info(f"Versements CRÉDIT {etat_excel.get('VERS. CREDIT', 0)}", icon="💲")
+acompte_column.warning(f"*ACCOMPTE:* {etat_excel.get('ACCOMPTE', 0)}", icon="💲")
+#
+command_column, versement_column, charges_column = st.columns(3)        # Columns
+command_column.success(f"*TOTAL COMMANDE:* {etat_excel.get('TOTAL COMMANDE', 0)}", icon="🛵")
+versement_column.success(f"*VERSEMENT:* {etat_excel.get('VERSEMENT', 0)}", icon="🚚")
+charges_column.error(f"*CHARGES:* {etat_excel.get('CHARGES', 0)}", icon="💸")
+
+st.divider()
 
 # Convert to Pandas dataframe
 etat_excel_pd = pd.DataFrame(etat_excel.items(), columns=["TYPE", "MONTANT"])
-etat_excel_pd["MONTANT_PIE"] = etat_excel_pd["MONTANT"].abs()       # convert to absolute values
+etat_excel_pd["MONTANT"] = etat_excel_pd["MONTANT"].abs()       # convert to absolute values
+etat_types = st.pills(
+    "Sélectionner les types à afficher dans le graphique:",
+    options=etat_excel_pd["TYPE"].tolist(),
+    default=etat_excel_pd["TYPE"].tolist(),
+    selection_mode="multi",
+    key="etat_types"
+)
 
+etat_excel_pd = etat_excel_pd.query('TYPE == @etat_types')
 fig_etat = px.pie(
     etat_excel_pd,
     names="TYPE",
-    values="MONTANT_PIE",
-    # title="<b>Etat Versement et Commandes</b>",
+    values="MONTANT",
     template="plotly_white",
 )
-fig_etat_column.plotly_chart(fig_etat, width="stretch")
+# Display table and chart side by side
+widgets.table_fig_columns(etat_excel_pd, fig_etat)
 st.divider()
-# ---------------------------------------------------------------------------------
-# Display the daily report
-# ------------------------
+
+# ----------------------------------
+# ---- Display the daily report ----
+# ----------------------------------
 fields = ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF"]
 etat_journalier = utils.etat_journalier(df, fields)
 
@@ -114,7 +123,9 @@ st.dataframe(
 )
 st.divider()
 
-# ---------------------------------------------------------------------------------
+# --------------------------------------------------
+# ---- Graphique Versement et Commande Par Jour ----
+# --------------------------------------------------
 st.subheader("💵 Etat _Versements_, _Commandes_ Par Jours", divider="gray", width="content")
 df_plot = etat_journalier[etat_journalier["Date"] != "TOTAL"]
 fig_versement = px.line(
@@ -129,9 +140,9 @@ fig_versement = px.line(
 st.plotly_chart(fig_versement, width="stretch")
 st.divider()
 
-# ----------------------------------------------------
-# Etat Total par Livreur
-# ------------------------
+# --------------------------------
+# ---- Etat Total par Livreur ----
+# --------------------------------
 st.space()
 st.subheader("🚚 _Etat Versement Par Livreur_", divider="gray", width="content")
 sum_by_driver = utils.sum_by_driver(df, fields, livreur_selection=livreur)
@@ -152,12 +163,11 @@ else:
     )
     # display the chart
     widgets.table_fig_columns(sum_by_driver.reset_index(), fig_livreur)
-
 st.divider()
 
-# ------------------------------
-# Versement Livreur Pourcentage
-# -----------------------
+# ------------------------------------------
+# ---- Versement Commande Pourcentage ----
+# ------------------------------------------
 sum_by_driver = sum_by_driver.reset_index()
 
 versement_pourcent, commande_pourcent = st.columns(2)
@@ -167,7 +177,7 @@ with versement_pourcent:
         sum_by_driver,
         names="LIVREUR",
         values="VERSEMENT",
-        title="<b>Pourcentage de Versement.</b>",
+        title="<b>Pourcentage des Versements.</b>",
         template="plotly_white",
     )
     st.plotly_chart(fig_pourcent, width="stretch")
@@ -185,20 +195,14 @@ with commande_pourcent:
 
 st.divider()
 
-# ---------------------------------------------------------------------------------
+# ----------------
 # ---- Retour ----
 # ----------------
 st.subheader("🔄 _Etat Retours Par Livreur_", divider="gray", width="content")
-# retour_livreur_selection = st.pills(
-    # 'Sélectionner les livreurs à afficher:',
-    # options=df['LIVREUR'].unique(),
-    # # default=df['LIVREUR'].unique(),
-    # selection_mode="multi",
-    # key="retour_livreur_selection",
-    # # width=500
-# )
-# st.info("Le retour est calculé comme la différence entre 'T. COMMANDE' et 'T.LOGICIEL'.")
-st.code("Le retour est calculé comme la différence entre 'T. COMMANDE' et 'T.LOGICIEL'.", language="markdown")
+st.code(
+    "Le retour est calculé comme la différence entre 'T. COMMANDE' et 'T.LOGICIEL'.",
+    language="markdown"
+)
 driver_retour, sum_retour_by_driver = utils.driver_retour(df)
 sum_retour_by_driver = sum_retour_by_driver[sum_retour_by_driver["LIVREUR"].isin(livreur)]
 
@@ -213,7 +217,7 @@ widgets.table_fig_columns(sum_retour_by_driver, retour_chart)
 st.divider()
 
 
-# ---------------------------------------------
+# -------------------------------------
 # ---- Details for a specific date ----
 # -------------------------------------
 @st.dialog("Details Journalier")
@@ -244,8 +248,8 @@ else:
     st.space("medium")
     fields = st.pills(
         "Sélectionner les champs à afficher:",
-        options=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"],
-        default=["VERSEMENT", "CHARGE", "DIFF", "OBSERVATION"],
+        options=df.columns.tolist()[2:],        # skip the DATE and LIVREUR column
+        default=df.columns.tolist()[2:],
         selection_mode="multi"
     )
     st.space()
@@ -263,7 +267,7 @@ else:
         )
 st.divider()
 
-# ---------------------------------------------
+# ----------------------
 # ---- Observations ----
 # ----------------------
 st.subheader("🧾 Les Observations", divider="gray", width="content")
