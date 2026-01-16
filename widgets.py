@@ -19,3 +19,17 @@ def table_fig_columns(df, chart):
             width="stretch"
         )
     fig_column.plotly_chart(chart, width="stretch")
+
+
+def display_totals(total_livraison, total_benefice):
+    livraison_col, benefice_col = st.columns(2)
+    livraison_col.metric(
+        label="🚚 Total Livraison",
+        value=f"{total_livraison:,.0f} DA",
+        border=True,
+    )
+    benefice_col.metric(
+        label="💲 Total Bénéfice",
+        value=f"{total_benefice:,.0f} DA",
+        border=True
+    )

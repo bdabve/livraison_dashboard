@@ -151,3 +151,41 @@ def driver_observations(clean_df):
     """
     driver_obs = clean_df.groupby(["LIVREUR"])["OBSERVATION"].sum()
     return driver_obs.reset_index()
+
+
+# --------------------
+# ---- VENTE PAGE ----
+# --------------------
+def all_sheets(file_name):
+    xls = pd.ExcelFile(file_name)
+
+    dfs = []
+    try:
+        for sheet in xls.sheet_names[1:]:
+            df = pd.read_excel(file_name, sheet_name=sheet)
+            df["PREVENDEUR"] = sheet
+            dfs.append(df)
+
+        final_df = pd.concat(dfs, ignore_index=True)
+        data = clean_df_vente(final_df)
+        return data
+    except Exception as err:
+        return {"success": False, "message": err}
+
+
+def clean_df_vente(df):
+    numeric_columns = ["Total livraison (DA)", "Total bénéfice (DA)"]
+    for col in numeric_columns:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    return {"success": True, "df": df}
+
+
+def get_totals_vente(df, prevendeur):
+    if prevendeur == "VENTE":
+        total_livraison = df["Total livraison (DA)"].sum(skipna=True)
+        total_benefice = df["Total bénéfice (DA)"].sum(skipna=True)
+    else:
+        total_livraison = df.groupby(["PREVENDEUR"], as_index=False)["Total livraison (DA)"].sum()
+        total_benefice = df.groupby(["PREVENDEUR"], as_index=False)["Total bénéfice (DA)"].sum()
+    return total_livraison, total_benefice
