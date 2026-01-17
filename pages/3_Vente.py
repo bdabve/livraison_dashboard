@@ -6,13 +6,16 @@
 # desc          :
 # ----------------------------------------------------------------------------
 
-import pandas as pd
+# import pandas as pd
 import utils
 import plotly.express as px
 import streamlit as st
 import widgets
 
-# Page configuration
+
+# ------------------------
+# == Configuration
+# ------------------------
 st.set_page_config(page_title="Vente Dashboard", page_icon=":bar_chart:", layout="wide")
 st.title("💱 _Vente_", text_alignment="center")
 st.space()
@@ -25,8 +28,14 @@ def load_data_from_excel(xls_file):
     return data
 
 
+@st.cache_data
+def load_data_multiple_excel(xls_files: list):
+    data = utils.multiple_files(xls_files)
+    return data
+
+
 # Load data
-excel_file = st.file_uploader("Télécharger le fichier Excel de Livraison", type=["xlsx"])
+excel_file = st.file_uploader("Télécharger le fichier Excel des Ventes", type=["xlsx"])
 
 if not excel_file:
     st.warning("Please upload an Excel file to proceed.")
@@ -34,119 +43,100 @@ if not excel_file:
 else:
     all_sheets = load_data_from_excel(excel_file)
     if all_sheets["success"]:
-        df_all_sheets = all_sheets["df"]
+        df = all_sheets["df"]
     else:
         st.warning(all_sheets["message"])
         st.stop()
 
-    prevendeur = st.sidebar.pills(
-        'Prevendeur:',
-        options=df_all_sheets["PREVENDEUR"].unique(),
-        # default="VENTE",
-        key="prevendeur"
-    )
-    st.session_state.sheet_name = {"prevendeur": prevendeur}
+# ==== Side Bar ======
 
-
-# --------------------------------------------------------------
-# --- ALL Sheets ----
-
-st.divider()
-st.space("medium")
-st.subheader("📋 _Etat Global des Vente Par Produit_", divider="gray", width="content")
-
-# -- Totals
-df_totals = utils.get_totals_vente(df_all_sheets, "VENTE")
-widgets.display_totals(df_totals)
-
-# Total par Prevendeur
-df_totals_prevendeur = utils.get_totals_vente(df_all_sheets, "PREVENDEUR")
-
-for _, row in df_totals_prevendeur.iterrows():
-    st.markdown(f"##### 👤 {row['PREVENDEUR']}")
-
-    col1, col2 = st.columns(2)
-
-    col1.metric(
-        "💰 Livraison",
-        f"{row['livraison']:,.0f} DA",
-        border=True
-    )
-
-    col2.metric(
-        "📈 Bénéfice",
-        f"{row['benefice']:,.0f} DA",
-        border=True
-    )
-
-# display the hole dataframe
-st.dataframe(
-    # This display all Sheets
-    df_all_sheets,
-    hide_index=True
+# Select Prevendeur
+prevendeur = st.sidebar.pills(
+    'Prevendeur:',
+    options=df["PREVENDEUR"].unique(),
+    default=df["PREVENDEUR"].unique()[0],
+    key="prevendeur"
 )
-# --------------------------------------------------------------
-# ------- Side Bar -------
+
 st.sidebar.header(f"**{prevendeur}**", text_alignment="center")
 st.sidebar.divider()
 
-# Filter by Livreur
-# st.sidebar.header('Filtré:')
 
-# ----------------------------
-# ---- The All DataFrame ----
-# ----------------------------
+# --------------------------------------------------------------
+# --- UI ----
+#
+
 st.divider()
 st.space("medium")
 st.subheader("📋 _Etat Global des Vente Par Produit_", divider="gray", width="content")
 
-# -- Columns for Totals
+# -----------
+# -- Totals
+df_totals = utils.get_totals_vente(df, "VENTE")
+widgets.display_totals(df_totals)                   # Display totals
+
+# Total par Prevendeur
+df_totals_prevendeur = utils.get_totals_vente(df, "PREVENDEUR")
+df_totals_prevendeur = df_totals_prevendeur.sort_values(by="livraison", ascending=False)
+
+# display product dataframe
+st.space("medium")
+st.markdown("#### *_Produits_*")
+st.dataframe(df, hide_index=True)       # DUMP DATAFRAME
+# ------------------------------
+# ---- Etat Prevendeur %----
+# ------------------------------
+st.divider()
+st.subheader("📋 _Etat Prevendeur_", divider="gray", width="content")
+# st.space("medium")
+
+for _, row in df_totals_prevendeur.iterrows():
+    st.markdown(f"##### 👤 {row['PREVENDEUR']}")
+    widgets.display_prevendeur_totals(row)          # Display metric totals
+
+st.dataframe(df_totals_prevendeur, hide_index=True)      # DATAFRAME TOTALS PREV
+
 total_livraison_chart = px.pie(
     df_totals_prevendeur,
     names="PREVENDEUR",
     values="livraison",
+    title="Livraison",
     template="plotly_white",
 )
-widgets.table_fig_columns(df_totals_prevendeur, total_livraison_chart)   # Display table and chart side by side
 
 # Bénéfice
 total_benefice_chart = px.pie(
     df_totals_prevendeur,
     names="PREVENDEUR",
     values="benefice",
+    title="Bénéfice",
     template="plotly_white",
 )
-widgets.table_fig_columns(df_totals_prevendeur, total_benefice_chart)     # Display table and chart side by side
-
+widgets.two_chart_columns(total_livraison_chart, total_benefice_chart)
 
 # ----------------------------
-# ---- The Hole DataFrame ----
+# ---- The  ----
 # ----------------------------
 st.divider()
-st.space("medium")
-st.subheader("🛵 _Etat des Vente Par Prevendeur_", divider="gray", width="content")
+st.space()
 
-prev_total_livraison = df_totals_prevendeur.loc[df_totals_prevendeur["PREVENDEUR"] == prevendeur]
-# prev_total_benefice = df_totals_prevendeur.loc[df_totals_prevendeur["PREVENDEUR"] == prevendeur]
-widgets.display_totals(prev_total_livraison)
-liv_col, benef_col = st.columns(2)
-liv_col.dataframe(prev_total_livraison, hide_index=True)
-# FIXME
-# widgets.display_totals(prev_total_livraison, prev_total_benefice)
+for _, row in df_totals_prevendeur.iterrows():
+    if row['PREVENDEUR'] == prevendeur:
+        st.subheader(f"🛵 _{prevendeur} Détail_", width="content")
+        st.space()
+        widgets.display_prevendeur_totals(row)              # Display Total metric
 
-df_prevendeur = df_all_sheets[df_all_sheets["PREVENDEUR"].isin([prevendeur])]
-st.dataframe(
-    df_prevendeur,
-    hide_index=True
-)
+df_prevendeur = df[df["PREVENDEUR"].isin([prevendeur])]     # DF_PREVENDEUR
+st.dataframe(df_prevendeur, hide_index=True)                # Display DataFrame
+
 # ----------------------------
 # ---- Grouped By Familly ----
 # ----------------------------
 st.divider()
 st.space("medium")
 st.subheader("💹 _Produit par Famille_", divider="gray", width="content")
-
-familly_groupe = df_prevendeur.groupby("Famille", as_index=False)[["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]].sum()
+fields = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]            # Fields
+familly_groupe = df_prevendeur.groupby("Famille", as_index=False)[fields].sum()
 # Chart
 famillyy_groupe_chart = px.pie(
     familly_groupe,
@@ -174,3 +164,29 @@ sfamilly_groupe_chart = px.pie(
 )
 # Display table and chart side by side
 widgets.table_fig_columns(sfamilly_groupe, sfamilly_groupe_chart)
+
+# -----------------------------------
+# ---- TODO: Prevendeur By Month ----
+# -----------------------------------
+st.divider()
+st.space()
+st.subheader("📆 _Etat Par Mois_", divider="gray", width="content")
+st.space()
+xls_files = st.file_uploader(
+    "Télécharger les fichier Excel par Mois",
+    accept_multiple_files=True,
+    type=["xlsx"]
+)
+
+if not xls_files:
+    st.warning("Please upload Excel files to proceed.")
+    st.stop()
+else:
+    df_data_mois = load_data_multiple_excel(xls_files)
+    if df_data_mois["success"]:
+        df_mois = df_data_mois["df"]
+    else:
+        st.warning(df_data_mois["message"])
+        st.stop()
+
+st.dataframe(df_mois, hide_index=True)

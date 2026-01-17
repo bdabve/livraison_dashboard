@@ -156,41 +156,39 @@ def driver_observations(clean_df):
 # --------------------
 # ---- VENTE PAGE ----
 # --------------------
-def all_sheets(file_name):
+def all_sheets(file_name, multiple=False):
     xls = pd.ExcelFile(file_name)
 
     dfs = []
     cols = ["Famille", "Sous famille", "Produit", "Quantité.1", "Total livraison (DA)", "Total bénéfice (DA)"]
-    dtypes = {
-        "Famille": str,
-        "Sous famille": str,
-        "Produit": str,
-        # "Quantité": float,
-        "Total livraison (DA)": float,
-        "Total bénéfice (DA)": float
-    }
     try:
         for sheet in xls.sheet_names[1:]:
             df = pd.read_excel(file_name, sheet_name=sheet, skiprows=14, header=0)
-            df = df[cols]
-            df = df.rename(columns={"Quantité.1": "Quantité"})
+            df = df[cols]       # Used coloumns
+            df = df.rename(columns={"Quantité.1": "Quantité"})      # rename
             df["PREVENDEUR"] = sheet
-            df = df[df["Famille"].notna()]
+
+            # This work with multiple file
+            if multiple: df["MOIS"] = file_name.name
+
+            df = df[df["Famille"].notna()]      # Drop Totals
             dfs.append(df)
 
         final_df = pd.concat(dfs, ignore_index=True)
-        data = clean_df_vente(final_df)
-        return data
+        return {"success": True, "df": final_df}
     except Exception as err:
         return {"success": False, "message": err}
 
 
-def clean_df_vente(df):
-    # numeric_columns = ["Total livraison (DA)", "Total bénéfice (DA)"]
-    # for col in numeric_columns:
-    #     if col in df.columns:
-    #         df[col] = pd.to_numeric(df[col], errors="coerce")
-    return {"success": True, "df": df}
+def multiple_files(xls_files: list):
+    dfs = []
+    for up_file in xls_files:
+        data = all_sheets(up_file, multiple=True)
+        if data["success"]: dfs.append(data["df"])
+        else: return {"success": False, "message": data["message"]}
+
+    final_df = pd.concat(dfs, ignore_index=True)
+    return final_df
 
 
 def get_totals_vente(df, prevendeur):

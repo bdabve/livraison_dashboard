@@ -1,8 +1,10 @@
 [theme]
 font="Monaco"
-base="dark"
-primaryColor="forestGreen"
+base="light"
+primaryColor="blueBackgroundColor"
+#primaryColor="powderBlue"
 #borderColor="powderBlue"
 
 [theme.sidebar]
+backgroundColor="ghostWhite"
 primaryColor="forestGreen"

@@ -8,6 +8,12 @@
 import streamlit as st
 
 
+def two_chart_columns(chart, chart_2):
+    chartColumn, chart2Column = st.columns(2)
+    chartColumn.plotly_chart(chart, width="stretch")
+    chart2Column.plotly_chart(chart_2, width="stretch")
+
+
 def table_fig_columns(df, chart):
     # Create two columns, One for table and one for figure
     table_column, fig_column = st.columns(2)
@@ -34,3 +40,23 @@ def display_totals(totals):
         value=f"{totals['benefice']:,.0f} DA",
         border=True
     )
+
+
+def display_prevendeur_totals(row):
+    """
+    Display Prevendeur totals in metric with 3 columns
+    """
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "💰 Livraison",
+        f"{row['livraison']:,.0f} DA",
+        border=True
+    )
+
+    col2.metric(
+        "📈 Bénéfice",
+        f"{row['benefice']:,.0f} DA",
+        border=True
+    )
+    st.divider()
