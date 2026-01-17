@@ -160,10 +160,22 @@ def all_sheets(file_name):
     xls = pd.ExcelFile(file_name)
 
     dfs = []
+    cols = ["Famille", "Sous famille", "Produit", "Quantité.1", "Total livraison (DA)", "Total bénéfice (DA)"]
+    dtypes = {
+        "Famille": str,
+        "Sous famille": str,
+        "Produit": str,
+        # "Quantité": float,
+        "Total livraison (DA)": float,
+        "Total bénéfice (DA)": float
+    }
     try:
         for sheet in xls.sheet_names[1:]:
-            df = pd.read_excel(file_name, sheet_name=sheet)
+            df = pd.read_excel(file_name, sheet_name=sheet, skiprows=14, header=0)
+            df = df[cols]
+            df = df.rename(columns={"Quantité.1": "Quantité"})
             df["PREVENDEUR"] = sheet
+            df = df[df["Famille"].notna()]
             dfs.append(df)
 
         final_df = pd.concat(dfs, ignore_index=True)
@@ -174,18 +186,31 @@ def all_sheets(file_name):
 
 
 def clean_df_vente(df):
-    numeric_columns = ["Total livraison (DA)", "Total bénéfice (DA)"]
-    for col in numeric_columns:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+    # numeric_columns = ["Total livraison (DA)", "Total bénéfice (DA)"]
+    # for col in numeric_columns:
+    #     if col in df.columns:
+    #         df[col] = pd.to_numeric(df[col], errors="coerce")
     return {"success": True, "df": df}
 
 
 def get_totals_vente(df, prevendeur):
+    """
+    Returns total livraison and total bénéfice.
+    If prevendeur == 'VENTE' → global totals
+    Else → totals grouped by PREVENDEUR
+    """
     if prevendeur == "VENTE":
-        total_livraison = df["Total livraison (DA)"].sum(skipna=True)
-        total_benefice = df["Total bénéfice (DA)"].sum(skipna=True)
-    else:
-        total_livraison = df.groupby(["PREVENDEUR"], as_index=False)["Total livraison (DA)"].sum()
-        total_benefice = df.groupby(["PREVENDEUR"], as_index=False)["Total bénéfice (DA)"].sum()
-    return total_livraison, total_benefice
+        return {
+            "livraison": df["Total livraison (DA)"].sum(),
+            "benefice": df["Total bénéfice (DA)"].sum(),
+        }
+
+    grouped = (
+        df.groupby("PREVENDEUR", as_index=False)
+        .agg(
+            livraison=("Total livraison (DA)", "sum"),
+            benefice=("Total bénéfice (DA)", "sum"),
+        )
+    )
+
+    return grouped
