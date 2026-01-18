@@ -6,7 +6,7 @@
 # desc          :
 # ----------------------------------------------------------------------------
 
-# import pandas as pd
+import pandas as pd
 import utils
 import plotly.express as px
 import streamlit as st
@@ -201,7 +201,7 @@ df_total_par_mois = (
         benefice=("Total bénéfice (DA)", "sum"),
     )
 )
-import pandas as pd
+
 df_grand_total = pd.DataFrame({
     "livraison": [df_total_par_mois["livraison"].sum()],
     "benefice": [df_total_par_mois["benefice"].sum()],

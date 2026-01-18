@@ -212,3 +212,50 @@ def get_totals_vente(df, prevendeur):
     )
 
     return grouped
+
+
+def build_totals_prevendeur_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
+
+    df = df_mois.copy()
+
+    # --- Ensure numeric ---
+    # for col in ["Total livraison (DA)", "Total bénéfice (DA)"]:
+        # df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # --- Group totals ---
+    df_total = (
+        df.groupby(["PREVENDEUR", "MOIS"], as_index=False)
+        .agg(
+            livraison=("Total livraison (DA)", "sum"),
+            benefice=("Total bénéfice (DA)", "sum"),
+        )
+    )
+
+    # --- Month order (French) ---
+    mois_order = {
+        "Janvier": 1, "Février": 2, "Mars": 3, "Avril": 4,
+        "Mai": 5, "Juin": 6, "Juillet": 7, "Août": 8,
+        "Septembre": 9, "Octobre": 10,
+        "VENTE_NOVEMBRE_2025.xlsx": 11,
+        "VENTE_DECEMBRE_2025.xlsx": 12,
+    }
+
+    df_total["MOIS_NUM"] = df_total["MOIS"].map(mois_order)
+
+    # --- Sort correctly ---
+    df_total = df_total.sort_values(["PREVENDEUR", "MOIS_NUM"])
+
+    # --- Previous month values ---
+    df_total["livraison_prev"] = df_total.groupby("PREVENDEUR")["livraison"].shift(1)
+    df_total["benefice_prev"] = df_total.groupby("PREVENDEUR")["benefice"].shift(1)
+
+    # ✅ Replace NaN with 0
+    df_total[["livraison_prev", "benefice_prev"]] = (
+        df_total[["livraison_prev", "benefice_prev"]].fillna(0)
+    )
+
+    # --- Delta ---
+    df_total["delta_livraison"] = df_total["livraison"] - df_total["livraison_prev"]
+    df_total["delta_benefice"] = df_total["benefice"] - df_total["benefice_prev"]
+
+    return df_total.reset_index(drop=True)
