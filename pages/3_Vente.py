@@ -90,6 +90,7 @@ st.divider()
 st.subheader("📋 _Etat Prevendeur_", divider="gray", width="content")
 # st.space("medium")
 
+# Display all totals par prevendeur
 for _, row in df_totals_prevendeur.iterrows():
     st.markdown(f"##### 👤 {row['PREVENDEUR']}")
     widgets.display_prevendeur_totals(row)          # Display metric totals
@@ -189,4 +190,33 @@ else:
         st.warning(df_data_mois["message"])
         st.stop()
 
-st.dataframe(df_mois, hide_index=True)
+st.dataframe(df_mois, hide_index=True)      # DATAFRAME CONTAINING ALL DATA
+
+total_columns = ["Total livraison (DA)", "Total bénéfice (DA)"]
+# ----
+df_total_par_mois = (
+    df_mois
+    .groupby("MOIS", as_index=False)
+    .agg(
+        livraison=("Total livraison (DA)", "sum"),
+        benefice=("Total bénéfice (DA)", "sum"),
+    )
+)
+import pandas as pd
+df_grand_total = pd.DataFrame({
+    "livraison": [df_total_par_mois["livraison"].sum()],
+    "benefice": [df_total_par_mois["benefice"].sum()],
+})
+
+st.space()
+st.subheader("📊 _Totaux mensuels_ : Livraison & Bénéfice", divider="grey", width="content")
+
+# Display
+# Grande Total
+for _, row in df_grand_total.iterrows():
+    widgets.display_prevendeur_totals(row)
+
+# Total par mois
+for _, row in df_total_par_mois.iterrows():
+    st.markdown(f"##### 📆 {row['MOIS']}")
+    widgets.display_prevendeur_totals(row)          # Display metric totals

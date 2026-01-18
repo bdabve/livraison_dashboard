@@ -47,16 +47,6 @@ def display_prevendeur_totals(row):
     Display Prevendeur totals in metric with 3 columns
     """
     col1, col2, col3 = st.columns(3)
-
-    col1.metric(
-        "💰 Livraison",
-        f"{row['livraison']:,.0f} DA",
-        border=True
-    )
-
-    col2.metric(
-        "📈 Bénéfice",
-        f"{row['benefice']:,.0f} DA",
-        border=True
-    )
+    col1.metric("💰 Livraison", f"{row['livraison']:,.0f} DA", border=True)
+    col2.metric("📈 Bénéfice", f"{row['benefice']:,.0f} DA", border=True)
     st.divider()

@@ -188,7 +188,7 @@ def multiple_files(xls_files: list):
         else: return {"success": False, "message": data["message"]}
 
     final_df = pd.concat(dfs, ignore_index=True)
-    return final_df
+    return {"success": True, "df": final_df}
 
 
 def get_totals_vente(df, prevendeur):
