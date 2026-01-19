@@ -186,7 +186,6 @@ widgets.table_chart_column(global_tab, familly_groupe, familly_chart)
 # -------------------------------------------------------------------------------------
 #   === TAB PREVENDEUR DETAIL ===
 # -------------------------------
-
 prevendeur = st.sidebar.pills(
     # Select Prevendeur
     'Prevendeur:',
@@ -238,7 +237,6 @@ widgets.table_chart_column(prevendeur_tab, familly_groupe, familly_chart)
 # ------------------------------
 # ---- Grouped By S.Familly ----
 # ------------------------------
-
 prevendeur_tab.divider()
 prevendeur_tab.space("medium")
 prevendeur_tab.markdown("#### 💹 _Produit par Sous famille %_")
