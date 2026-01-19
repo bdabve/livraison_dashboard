@@ -14,17 +14,13 @@ def two_chart_columns(root, chart, chart_2):
     chart2Column.plotly_chart(chart_2, width="stretch")
 
 
-def table_fig_columns(root, df, chart):
+def table_chart_column(root, df, chart):
     # Create two columns, One for table and one for figure
-    table_column, fig_column = root.columns(2)
+    table_column, chart_column = root.columns(2)
     with table_column:
-        # root.space("large")
-        root.dataframe(
-            df,
-            hide_index=True,
-            # width="stretch"
-        )
-    fig_column.plotly_chart(chart, width="stretch")
+        st.space("medium")
+        st.dataframe(df, hide_index=True)
+    chart_column.plotly_chart(chart, width="stretch")
 
 
 def display_totals(totals):
