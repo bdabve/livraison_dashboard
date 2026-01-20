@@ -16,6 +16,8 @@ import widgets
 # ------------------------
 # == Configuration
 # ------------------------
+FAMILLE_FIELDS = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]            # Fields
+
 st.set_page_config(page_title="Vente Dashboard", page_icon=":bar_chart:", layout="wide")
 st.title("💱 _Vente_", text_alignment="center")
 st.space()
@@ -52,8 +54,8 @@ global_tab, prevendeur_tab = st.tabs(
     default="Etat Par Mois"
 )
 # ---------------------------------------------------
-# === Tableau Des Produit Etat Générale
-# -------------------------------------
+# === Tableau Des Produit Etat Générale ===
+# -----------------------------------------
 global_tab.space()
 global_tab.markdown("##### 🗃 Tableaux des Données")
 global_tab.space()
@@ -68,7 +70,7 @@ df_total_par_mois = (
         benefice=("Total bénéfice (DA)", "sum"),
     )
 )
-# Grand Total
+# --- Grand Total ---
 df_grand_total = pd.DataFrame({
     "livraison": [df_total_par_mois["livraison"].sum()],
     "benefice": [df_total_par_mois["benefice"].sum()],
@@ -104,7 +106,9 @@ global_tab.space()
 global_tab.dataframe(df_total_prevendeur_mois, hide_index=True)
 global_tab.divider()
 
+# --------------------
 # --- Filter Month ---
+# --------------------
 months = df_total_prevendeur_mois.sort_values("MOIS_NUM")["MOIS"].unique()
 selected_month = st.sidebar.selectbox(
     "📅 Choisir le mois",
@@ -116,7 +120,6 @@ st.sidebar.divider()
 
 # DATAFRAME GENERAL MOIS
 df_selected_month = df_mois[df_mois["MOIS"] == selected_month]      # MOIS DATAFRAME
-
 #
 global_tab.space()
 global_tab.subheader(f"{selected_month}", text_alignment="center", divider="grey")
@@ -160,17 +163,15 @@ total_benefice_chart = px.pie(
 global_tab.space()
 widgets.two_chart_columns(global_tab, total_livraison_chart, total_benefice_chart)
 
-# ----------------------------
-# ---- Grouped By Familly ----
-# ----------------------------
+# ------------------------------------------
+# ---- Grouped By Familly Etat Générale ----
+# ------------------------------------------
 global_tab.divider()
 global_tab.space("medium")
 global_tab.markdown("#### 💹 **Produits par Famille**")
 global_tab.space("medium")
 
-fields = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]            # Fields
-familly_groupe = df_selected_month.groupby("Famille", as_index=False)[fields].sum()
-
+familly_groupe = df_selected_month.groupby("Famille", as_index=False)[FAMILLE_FIELDS].sum()
 # Chart
 familly_chart = px.pie(
     df_selected_month,
@@ -181,8 +182,6 @@ familly_chart = px.pie(
 )
 # Display table and chart side by side
 widgets.table_chart_column(global_tab, familly_groupe, familly_chart)
-
-
 # -------------------------------------------------------------------------------------
 #   === TAB PREVENDEUR DETAIL ===
 # -------------------------------
@@ -220,8 +219,7 @@ prevendeur_tab.space("medium")
 prevendeur_tab.markdown("#### 💹 **Produits par Famille**")
 prevendeur_tab.space("medium")
 
-fields = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]            # Fields
-familly_groupe = df_prevendeur.groupby("Famille", as_index=False)[fields].sum()
+familly_groupe = df_prevendeur.groupby("Famille", as_index=False)[FAMILLE_FIELDS].sum()
 
 # Chart
 familly_chart = px.pie(
@@ -251,13 +249,14 @@ selected_famille = prevendeur_tab.selectbox(
 prevendeur_tab.space()
 
 sfamille_selection = (df_prevendeur[df_prevendeur["Famille"] == selected_famille])
-sfamilly_groupe = sfamille_selection.groupby("Sous famille", as_index=False)[["Quantité"]].sum()
+sfamilly_groupe = sfamille_selection.groupby("Sous famille", as_index=False)[FAMILLE_FIELDS].sum()
 
 # Chart
 sfamilly_chart = px.pie(
     sfamilly_groupe,
     names="Sous famille",
     values="Quantité",
+    title="Produit Par Sous Famille %",
     template="plotly_white",
 )
 # Display table and chart side by side

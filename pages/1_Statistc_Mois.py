@@ -75,21 +75,45 @@ etat_excel = utils.etat_excel_like_db(df)
 
 st.subheader("💰 _Etat Mensuel_", text_alignment="left", divider="gray", width="stretch")
 
-credit_column, versement_credit_column, acompte_column = st.columns(3)      # Columns
-credit_column.error(f"*CRÉDIT:* {etat_excel.get('CREDIT', 0)}", icon="💲")
-versement_credit_column.info(f"Versements CRÉDIT {etat_excel.get('VERS. CREDIT', 0)}", icon="💲")
-acompte_column.warning(f"*ACCOMPTE:* {etat_excel.get('ACCOMPTE', 0)}", icon="💲")
+credit_column, vers_credit_column, acompte_column = st.columns(3)      # Columns
+credit_column.metric(
+    "💲 **CRÉDIT**",
+    etat_excel.get("CREDIT", 0),
+    border=True
+)
+vers_credit_column.metric(
+    "💰 **Versements CRÉDIT**",
+    etat_excel.get('VERS. CREDIT', 0),
+    border=True
+)
+acompte_column.metric(
+    "**ACCOMPTE**",
+    etat_excel.get('ACCOMPTE', 0),
+    border=True
+)
 #
 command_column, versement_column, charges_column = st.columns(3)        # Columns
-command_column.success(f"*TOTAL COMMANDE:* {etat_excel.get('TOTAL COMMANDE', 0)}", icon="🛵")
-versement_column.success(f"*VERSEMENT:* {etat_excel.get('VERSEMENT', 0)}", icon="🚚")
-charges_column.error(f"*CHARGES:* {etat_excel.get('CHARGES', 0)}", icon="💸")
-
+command_column.metric(
+    "🛵 *TOTAL COMMANDE:*",
+    etat_excel.get('TOTAL COMMANDE', 0),
+    border=True
+)
+versement_column.metric(
+    "🚚 *VERSEMENT:*",
+    etat_excel.get('VERSEMENT', 0),
+    border=True
+)
+charges_column.metric(
+    "💸 *CHARGES:*",
+    etat_excel.get('CHARGES', 0),
+    border=True
+)
 st.divider()
 
 # Convert to Pandas dataframe
 etat_excel_pd = pd.DataFrame(etat_excel.items(), columns=["TYPE", "MONTANT"])
 etat_excel_pd["MONTANT"] = etat_excel_pd["MONTANT"].abs()       # convert to absolute values
+
 etat_types = st.pills(
     "Sélectionner les types à afficher dans le graphique:",
     options=etat_excel_pd["TYPE"].tolist(),
@@ -106,7 +130,7 @@ fig_etat = px.pie(
     template="plotly_white",
 )
 # Display table and chart side by side
-widgets.table_fig_columns(etat_excel_pd, fig_etat)
+widgets.table_chart_column(st, etat_excel_pd, fig_etat)
 st.divider()
 
 # ----------------------------------
@@ -162,37 +186,30 @@ else:
         template="plotly_white",
     )
     # display the chart
-    widgets.table_fig_columns(sum_by_driver.reset_index(), fig_livreur)
+    widgets.table_chart_column(st, sum_by_driver.reset_index(), fig_livreur)
 st.divider()
 
 # ------------------------------------------
 # ---- Versement Commande Pourcentage ----
 # ------------------------------------------
 sum_by_driver = sum_by_driver.reset_index()
-
-versement_pourcent, commande_pourcent = st.columns(2)
-with versement_pourcent:
-    st.subheader("💵 _Etat Versement_", divider="gray", width="content")
-    fig_pourcent = px.pie(
-        sum_by_driver,
-        names="LIVREUR",
-        values="VERSEMENT",
-        title="<b>Pourcentage des Versements.</b>",
-        template="plotly_white",
-    )
-    st.plotly_chart(fig_pourcent, width="stretch")
-
-with commande_pourcent:
-    st.subheader("🛵 _Etat Prevendeur_", divider="gray", width="content")
-    cmd_fig_pourcent = px.pie(
-        sum_by_driver,
-        names="LIVREUR",
-        values="T.LOGICIEL",
-        title="<b>Pourcentage des Commandes.</b>",
-        template="plotly_white",
-    )
-    st.plotly_chart(cmd_fig_pourcent, width="stretch")
-
+# Versement Chart
+etat_vers_chart = px.pie(
+    sum_by_driver,
+    names="LIVREUR",
+    values="VERSEMENT",
+    title="<b>💵 Etat Versement</b>",
+    template="plotly_white",
+)
+# Commande Chart
+etat_cmd_chart = px.pie(
+    sum_by_driver,
+    names="LIVREUR",
+    values="T.LOGICIEL",
+    title="<b>🛵 Etat Prevendeur</b>",
+    template="plotly_white",
+)
+widgets.two_chart_columns(st, etat_vers_chart, etat_cmd_chart)
 st.divider()
 
 # ----------------
@@ -213,7 +230,7 @@ retour_chart = px.pie(
     # title="<b>Retour par Livreur</b>",
     template="plotly_white",
 )
-widgets.table_fig_columns(sum_retour_by_driver, retour_chart)
+widgets.table_chart_column(st, sum_retour_by_driver, retour_chart)
 st.divider()
 
 
