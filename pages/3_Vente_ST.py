@@ -22,6 +22,7 @@ st.set_page_config(page_title="Vente Dashboard", page_icon=":bar_chart:", layout
 st.title("💱 _Vente_", text_alignment="center")
 st.space()
 
+
 # ----------------------------------------------------------------
 
 # ----------------------------------------------------------------
@@ -54,13 +55,6 @@ global_tab, prevendeur_tab = st.tabs(
     default="Etat Par Mois"
 )
 # ---------------------------------------------------
-# === Tableau Des Produit Etat Générale ===
-# -----------------------------------------
-global_tab.space()
-global_tab.markdown("##### 🗃 Tableaux des Données")
-global_tab.space()
-global_tab.dataframe(df_mois, hide_index=True)      # ALL DATAFRAME
-
 # --- TOTALS ---
 df_total_par_mois = (
     df_mois
@@ -101,7 +95,7 @@ df_total_prevendeur_mois = utils.build_totals_prevendeur_mois(df_mois)
 
 global_tab.space()
 global_tab.subheader("📊 _Totaux mensuels par Prevendeur_", divider="grey", width="content")
-global_tab.markdown("##### 🗃 Tableaux des Données")
+global_tab.markdown("##### 🗃 Tableaux des totaux par Prevendeur")
 global_tab.space()
 global_tab.dataframe(df_total_prevendeur_mois, hide_index=True)
 global_tab.divider()
@@ -117,15 +111,14 @@ selected_month = st.sidebar.selectbox(
 )
 st.sidebar.header(f"**{selected_month}**", text_alignment="center")
 st.sidebar.divider()
-
-# DATAFRAME GENERAL MOIS
-df_selected_month = df_mois[df_mois["MOIS"] == selected_month]      # MOIS DATAFRAME
+#
 #
 global_tab.space()
 global_tab.subheader(f"{selected_month}", text_alignment="center", divider="grey")
 
 # Select Month DF this work with the Totals DF
 df_selection_total_prev = df_total_prevendeur_mois[df_total_prevendeur_mois["MOIS"] == selected_month]
+
 for _, row in df_selection_total_prev.iterrows():
     global_tab.markdown(f"##### 👤 {row['PREVENDEUR']}")
     c1, c2 = global_tab.columns(2)
@@ -162,6 +155,45 @@ total_benefice_chart = px.pie(
 )
 global_tab.space()
 widgets.two_chart_columns(global_tab, total_livraison_chart, total_benefice_chart)
+global_tab.divider()
+
+# ---------------------------------------------------
+# === Tableau Des Produit Etat Générale ===
+# -----------------------------------------
+# DATAFRAME GENERAL MOIS
+df_selected_month = df_mois[df_mois["MOIS"] == selected_month]      # MOIS DATAFRAME
+
+df_produit = (
+    df_selected_month
+    .groupby(["Produit"], as_index=False)
+    .agg(
+        qte=("Quantité", "sum"),
+        livraison=("Total livraison (DA)", "sum"),
+        benefice=("Total bénéfice (DA)", "sum")
+    )
+    .sort_values("qte", ascending=False)
+    .rename(columns={"qte": "Quantité", "livraison": "Total Livraison", "benefice": "Total Bénéfice"})
+)
+
+global_tab.space()
+global_tab.markdown("##### 🗃 Tableaux des Produit")
+global_tab.space()
+
+# Search Products
+input_col, space_col = global_tab.columns(2)
+search_product = input_col.text_input(
+    label="Search Product",
+    placeholder="Rechercher par produit",
+    key="search_products",
+    icon="🔎"
+)
+if search_product:
+    mask = df_produit["Produit"].astype(str).str.contains(search_product, case=False, na=False)
+    df_produit = df_produit[mask]
+    # global_tab.dataframe(df_produit.style.highlight_regex(search_product, subset=["Produit"], color="#FFEAA7"))
+    global_tab.dataframe(df_produit, hide_index=True)      # ALL DATAFRAME
+else:
+    global_tab.dataframe(df_produit, hide_index=True)      # ALL DATAFRAME
 
 # ------------------------------------------
 # ---- Grouped By Familly Etat Générale ----
@@ -182,6 +214,7 @@ familly_chart = px.pie(
 )
 # Display table and chart side by side
 widgets.table_chart_column(global_tab, familly_groupe, familly_chart)
+
 # -------------------------------------------------------------------------------------
 #   === TAB PREVENDEUR DETAIL ===
 # -------------------------------
@@ -204,12 +237,41 @@ for _, row in df_selection_total_prev.iterrows():
         widgets.display_prevendeur_totals(prevendeur_tab, row)              # Display Total metric
 
 # === Global Data Par Prevendeur ===
-df_selected_month = df_mois[df_mois["MOIS"] == selected_month]
 df_prevendeur = df_selected_month[df_selected_month["PREVENDEUR"] == prevendeur]
-prevendeur_tab.space("medium")
+
+# --- Filter and Display Products ---
+df_produit_prev = (
+    df_selected_month
+    .groupby(["Produit", "PREVENDEUR"], as_index=False)
+    .agg(
+        qte=("Quantité", "sum"),
+        livraison=("Total livraison (DA)", "sum"),
+        benefice=("Total bénéfice (DA)", "sum")
+    )
+    .sort_values("qte", ascending=False)
+    .rename(columns={"qte": "Quantité", "livraison": "Total Livraison", "benefice": "Total Bénéfice"})
+)
+df_produit_prev = df_produit_prev[df_produit_prev["PREVENDEUR"] == prevendeur]
+
+prevendeur_tab.space()
 prevendeur_tab.markdown("##### 🗃 Tableaux des Produit")
 prevendeur_tab.space()
-prevendeur_tab.dataframe(df_prevendeur, hide_index=True)       # DUMP DATAFRAME
+
+# Search Products
+input_col, space_col = prevendeur_tab.columns(2)
+search_product_prev = input_col.text_input(
+    label="Search Product",
+    placeholder="Rechercher par produit",
+    key="search_products_prev",
+    icon="🔎"
+)
+if search_product_prev:
+    mask = df_produit_prev["Produit"].astype(str).str.contains(search_product_prev, case=False, na=False)
+    df_produit_prev = df_produit_prev[mask]
+    # global_tab.dataframe(df_produit.style.highlight_regex(search_product, subset=["Produit"], color="#FFEAA7"))
+    prevendeur_tab.dataframe(df_produit_prev, hide_index=True)      # ALL DATAFRAME
+else:
+    prevendeur_tab.dataframe(df_produit_prev, hide_index=True)      # ALL DATAFRAME
 
 # ----------------------------
 # ---- Grouped By Familly ----
