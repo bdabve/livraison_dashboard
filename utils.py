@@ -6,12 +6,14 @@
 # desc          :
 # ----------------------------------------------------------------------------
 import pandas as pd
+import plotly.express as px
 
 MONTHS_NAMES = {
     "JANVIER": 1, "FÉVRIER": 2, "MARS": 3, "AVRIL": 4,
     "MAI": 5, "JUIN": 6, "JUILLET": 7, "AOÛT": 8,
     "SEPTEMBRE": 9, "OCTOBRE": 10, "NOVEMBRE": 11, "DECEMBRE": 12
 }
+FAMILLE_FIELDS = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]            # Fields
 
 
 def clean_dataframe(df):
@@ -215,6 +217,10 @@ def get_totals_vente(df, prevendeur):
 
 
 def build_totals_prevendeur_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
+    """
+    Total Par Prevendeur
+    with delta of previous Mois
+    """
 
     df = df_mois.copy()
 
@@ -259,3 +265,44 @@ def build_totals_prevendeur_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
     df_total["delta_benefice"] = df_total["benefice"] - df_total["benefice_prev"]
 
     return df_total.reset_index(drop=True)
+
+
+def familly_groupe(df):
+    """
+    This will return
+    df grouped by familly
+    familly chart %
+    """
+    familly_groupe = (
+        df
+        .groupby("Famille", as_index=False)[FAMILLE_FIELDS]
+        .sum()
+        .sort_values("Quantité", ascending=False)
+    )
+    # Chart
+    familly_chart = px.pie(
+        df,
+        names="Famille",
+        values="Quantité",
+        title="Produit par famille",
+        template="plotly_white",
+    )
+    return familly_groupe, familly_chart
+
+
+def sfamilly_groupe(df):
+    sfamilly_groupe = (
+        df.groupby("Sous famille", as_index=False)[FAMILLE_FIELDS]
+        .sum()
+        .sort_values("Quantité", ascending=False)
+    )
+
+    # Chart
+    sfamilly_chart = px.pie(
+        sfamilly_groupe,
+        names="Sous famille",
+        values="Quantité",
+        title="Produit Par Sous Famille %",
+        template="plotly_white",
+    )
+    return sfamilly_groupe, sfamilly_chart

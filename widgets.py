@@ -23,26 +23,26 @@ def table_chart_column(root, df, chart):
     chart_column.plotly_chart(chart, width="stretch")
 
 
-def display_totals(totals):
-    col1, col2 = st.columns(2)
+def display_totals(root, totals, delta=False):
+    """
+    Display Total in metrics in 2 columns
+    :totals: row in; for _, row in df.iterrows
+    """
+    col1, col2 = root.columns(2)
     col1.metric(
-        label="🚚 Total Livraison",
-        value=f"{totals['livraison']:,.0f} DA",
+        "💰 Livraison",
+        f"{totals['livraison']:,.0f} DA",
         border=True
     )
-
-    col2.metric(
-        label="💰 Total Bénéfice",
-        value=f"{totals['benefice']:,.0f} DA",
-        border=True
-    )
+    col2.metric("📈 Bénéfice", f"{totals['benefice']:,.0f} DA", border=True)
+    root.divider()
 
 
 def display_prevendeur_totals(root, row):
     """
     Display Prevendeur totals in metric with 3 columns
     """
-    col1, col2, col3 = root.columns(3)
+    col1, col2 = root.columns(2)
     col1.metric(
         "💰 Livraison", f"{row['livraison']:,.0f} DA",
         delta=f"{row['delta_livraison']:,.0f} DA",

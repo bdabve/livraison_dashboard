@@ -16,16 +16,11 @@ import widgets
 # ------------------------
 # == Configuration
 # ------------------------
-FAMILLE_FIELDS = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]            # Fields
-
 st.set_page_config(page_title="Vente Dashboard", page_icon=":bar_chart:", layout="wide")
 st.title("💱 _Vente_", text_alignment="center")
 st.space()
 
 
-# ----------------------------------------------------------------
-
-# ----------------------------------------------------------------
 @st.cache_data
 def load_data_multiple_excel(xls_files: list):
     data = utils.multiple_files(xls_files)
@@ -54,8 +49,9 @@ global_tab, prevendeur_tab = st.tabs(
     ["Etat Par Mois", "Etat Prevendeur détails"],
     default="Etat Par Mois"
 )
-# ---------------------------------------------------
+# ----------------------------------------------------------------
 # --- TOTALS ---
+#
 df_total_par_mois = (
     df_mois
     .groupby("MOIS", as_index=False)
@@ -69,24 +65,19 @@ df_grand_total = pd.DataFrame({
     "livraison": [df_total_par_mois["livraison"].sum()],
     "benefice": [df_total_par_mois["benefice"].sum()],
 })
+# --------------------------------------------------------
 
 global_tab.space()
 global_tab.subheader("📊 Totaux mensuels _Livraison_ & _Bénéfice_", divider="grey", width="content")
 
-# == Display Grande Total ==
+# -- Display Grande Total --
 for _, row in df_grand_total.iterrows():
-    col1, col2 = global_tab.columns(2)
-    col1.metric("💰 Livraison", f"{row['livraison']:,.0f} DA", border=True)
-    col2.metric("📈 Bénéfice", f"{row['benefice']:,.0f} DA", border=True)
-    global_tab.divider()
+    widgets.display_totals(global_tab, row)
 
-# == Display Total par MOIS ==
+# -- Display Total par MOIS --
 for _, row in df_total_par_mois.iterrows():
     global_tab.markdown(f"##### 📆 {row['MOIS']}")
-    col1, col2 = global_tab.columns(2)
-    col1.metric("💰 Livraison", f"{row['livraison']:,.0f} DA", border=True)
-    col2.metric("📈 Bénéfice", f"{row['benefice']:,.0f} DA", border=True)
-    global_tab.divider()
+    widgets.display_totals(global_tab, row)
 
 # ----------------------------
 # --- Total Par Prevendeur ---
@@ -94,10 +85,12 @@ for _, row in df_total_par_mois.iterrows():
 df_total_prevendeur_mois = utils.build_totals_prevendeur_mois(df_mois)
 
 global_tab.space()
-global_tab.subheader("📊 _Totaux mensuels par Prevendeur_", divider="grey", width="content")
-global_tab.markdown("##### 🗃 Tableaux des totaux par Prevendeur")
+global_tab.subheader("🗃 _Totaux mensuels par Prevendeur_", divider="grey", width="content")
 global_tab.space()
-global_tab.dataframe(df_total_prevendeur_mois, hide_index=True)
+global_tab.dataframe(
+    df_total_prevendeur_mois[["PREVENDEUR", "MOIS", "livraison", "benefice"]],
+    hide_index=True
+)
 global_tab.divider()
 
 # --------------------
@@ -112,29 +105,15 @@ selected_month = st.sidebar.selectbox(
 st.sidebar.header(f"**{selected_month}**", text_alignment="center")
 st.sidebar.divider()
 #
-#
 global_tab.space()
 global_tab.subheader(f"{selected_month}", text_alignment="center", divider="grey")
-
-# Select Month DF this work with the Totals DF
+#
+# DATAFRAME Total Par preveundeur for A specefic Month
 df_selection_total_prev = df_total_prevendeur_mois[df_total_prevendeur_mois["MOIS"] == selected_month]
 
 for _, row in df_selection_total_prev.iterrows():
     global_tab.markdown(f"##### 👤 {row['PREVENDEUR']}")
-    c1, c2 = global_tab.columns(2)
-    c1.metric(
-        "💰 Livraison",
-        f"{row['livraison']:,.0f} DA",
-        delta=f"{row['delta_livraison']:,.0f} DA",
-        border=True
-    )
-    c2.metric(
-        "📈 Bénéfice",
-        f"{row['benefice']:,.0f} DA",
-        delta=f"{row['delta_benefice']:,.0f} DA",
-        border=True
-    )
-    global_tab.divider()
+    widgets.display_prevendeur_totals(global_tab, row)
 
 # Prevendeur Livraison Chart
 total_livraison_chart = px.pie(
@@ -162,7 +141,6 @@ global_tab.divider()
 # -----------------------------------------
 # DATAFRAME GENERAL MOIS
 df_selected_month = df_mois[df_mois["MOIS"] == selected_month]      # MOIS DATAFRAME
-
 df_produit = (
     df_selected_month
     .groupby(["Produit"], as_index=False)
@@ -179,7 +157,7 @@ global_tab.space()
 global_tab.markdown("##### 🗃 Tableaux des Produit")
 global_tab.space()
 
-# Search Products
+# --- Search Products
 input_col, space_col = global_tab.columns(2)
 search_product = input_col.text_input(
     label="Search Product",
@@ -190,55 +168,49 @@ search_product = input_col.text_input(
 if search_product:
     mask = df_produit["Produit"].astype(str).str.contains(search_product, case=False, na=False)
     df_produit = df_produit[mask]
-    # global_tab.dataframe(df_produit.style.highlight_regex(search_product, subset=["Produit"], color="#FFEAA7"))
-    global_tab.dataframe(df_produit, hide_index=True)      # ALL DATAFRAME
-else:
-    global_tab.dataframe(df_produit, hide_index=True)      # ALL DATAFRAME
+
+# Display the Product Dataframe
+global_tab.dataframe(df_produit, hide_index=True)
+global_tab.divider()
 
 # ------------------------------------------
 # ---- Grouped By Familly Etat Générale ----
 # ------------------------------------------
-global_tab.divider()
-global_tab.space("medium")
+global_tab.space()
 global_tab.markdown("#### 💹 **Produits par Famille**")
-global_tab.space("medium")
+global_tab.space()
 
-familly_groupe = df_selected_month.groupby("Famille", as_index=False)[FAMILLE_FIELDS].sum()
-# Chart
-familly_chart = px.pie(
-    df_selected_month,
-    names="Famille",
-    values="Quantité",
-    title="Produit par famille",
-    template="plotly_white",
-)
-# Display table and chart side by side
-widgets.table_chart_column(global_tab, familly_groupe, familly_chart)
+familly_groupe, familly_chart = utils.familly_groupe(df_selected_month)     # Get the data
+widgets.table_chart_column(global_tab, familly_groupe, familly_chart)       # Display table and chart side by side
 
 # -------------------------------------------------------------------------------------
 #   === TAB PREVENDEUR DETAIL ===
 # -------------------------------
+#
+# Sidebar Select Prevendeur
 prevendeur = st.sidebar.pills(
-    # Select Prevendeur
     'Prevendeur:',
     options=df_mois["PREVENDEUR"].unique(),
     default=df_mois["PREVENDEUR"].unique()[0],
     key="prevendeur"
 )
-
+#
 st.sidebar.header(f"**{prevendeur}**", text_alignment="center")
 st.sidebar.divider()
 
 # --- Total Livraison, Bénéfice For Selected Prevendeur ---
+prevendeur_tab.space()      # First Space Tab
 for _, row in df_selection_total_prev.iterrows():
     if row['PREVENDEUR'] == prevendeur:
-        prevendeur_tab.subheader(f"🛵 _{prevendeur} Détail_", divider="grey", width="content")
+        prevendeur_tab.markdown(f"#### 🛵 _{prevendeur} Détails_")
+        # prevendeur_tab.subheader(f" _{prevendeur} Détail_", divider="grey", width="content")
         prevendeur_tab.space()
         widgets.display_prevendeur_totals(prevendeur_tab, row)              # Display Total metric
-
-# === Global Data Par Prevendeur ===
+prevendeur_tab.divider()
+#
+# --- Global Data Par Prevendeur ---
 df_prevendeur = df_selected_month[df_selected_month["PREVENDEUR"] == prevendeur]
-
+#
 # --- Filter and Display Products ---
 df_produit_prev = (
     df_selected_month
@@ -252,8 +224,6 @@ df_produit_prev = (
     .rename(columns={"qte": "Quantité", "livraison": "Total Livraison", "benefice": "Total Bénéfice"})
 )
 df_produit_prev = df_produit_prev[df_produit_prev["PREVENDEUR"] == prevendeur]
-
-prevendeur_tab.space()
 prevendeur_tab.markdown("##### 🗃 Tableaux des Produit")
 prevendeur_tab.space()
 
@@ -268,58 +238,34 @@ search_product_prev = input_col.text_input(
 if search_product_prev:
     mask = df_produit_prev["Produit"].astype(str).str.contains(search_product_prev, case=False, na=False)
     df_produit_prev = df_produit_prev[mask]
-    # global_tab.dataframe(df_produit.style.highlight_regex(search_product, subset=["Produit"], color="#FFEAA7"))
-    prevendeur_tab.dataframe(df_produit_prev, hide_index=True)      # ALL DATAFRAME
-else:
-    prevendeur_tab.dataframe(df_produit_prev, hide_index=True)      # ALL DATAFRAME
+
+prevendeur_tab.dataframe(df_produit_prev, hide_index=True)      # Display DataFrame
+prevendeur_tab.divider()
 
 # ----------------------------
 # ---- Grouped By Familly ----
 # ----------------------------
-prevendeur_tab.divider()
-prevendeur_tab.space("medium")
+prevendeur_tab.space()
 prevendeur_tab.markdown("#### 💹 **Produits par Famille**")
-prevendeur_tab.space("medium")
+prevendeur_tab.space()
 
-familly_groupe = df_prevendeur.groupby("Famille", as_index=False)[FAMILLE_FIELDS].sum()
-
-# Chart
-familly_chart = px.pie(
-    familly_groupe,
-    names="Famille",
-    values="Quantité",
-    title="Produit par famille",
-    template="plotly_white",
-)
-# Display table and chart side by side
-widgets.table_chart_column(prevendeur_tab, familly_groupe, familly_chart)
+familly_groupe, familly_chart = utils.familly_groupe(df_prevendeur)             # Get Famille DF, Famille Chart
+widgets.table_chart_column(prevendeur_tab, familly_groupe, familly_chart)       # Display table and chart side by side
+prevendeur_tab.divider()
 
 # ------------------------------
 # ---- Grouped By S.Familly ----
 # ------------------------------
-prevendeur_tab.divider()
-prevendeur_tab.space("medium")
-prevendeur_tab.markdown("#### 💹 _Produit par Sous famille %_")
-prevendeur_tab.space("medium")
-
-famille = df_prevendeur.sort_values("Famille")["Famille"].unique()
-selected_famille = prevendeur_tab.selectbox(
-    "Choisir le famille",
-    famille,
-    index=len(famille) - 1  # default = latest month
-)
+prevendeur_tab.space()
+prevendeur_tab.markdown("#### 📑 _Produit par Sous famille %_")
 prevendeur_tab.space()
 
-sfamille_selection = (df_prevendeur[df_prevendeur["Famille"] == selected_famille])
-sfamilly_groupe = sfamille_selection.groupby("Sous famille", as_index=False)[FAMILLE_FIELDS].sum()
+famille = df_prevendeur.sort_values("Famille")["Famille"].unique()
+# Two Columns
+col1, col2 = prevendeur_tab.columns(2)
+selected_famille = col1.selectbox("Choisir le famille", famille, index=0)
 
-# Chart
-sfamilly_chart = px.pie(
-    sfamilly_groupe,
-    names="Sous famille",
-    values="Quantité",
-    title="Produit Par Sous Famille %",
-    template="plotly_white",
-)
-# Display table and chart side by side
-widgets.table_chart_column(prevendeur_tab, sfamilly_groupe, sfamilly_chart)
+prevendeur_tab.space()
+sfamille_selection = df_prevendeur[df_prevendeur["Famille"] == selected_famille]
+sfamilly_groupe, sfamilly_chart = utils.sfamilly_groupe(sfamille_selection)     # Get Famille DF, Famille Chart
+widgets.table_chart_column(prevendeur_tab, sfamilly_groupe, sfamilly_chart)     # Display table and chart side by side
