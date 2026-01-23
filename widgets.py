@@ -53,4 +53,4 @@ def display_prevendeur_totals(root, row):
         delta=f"{row['delta_benefice']:,.0f} DA",
         border=True
     )
-    st.divider()
+    root.divider()

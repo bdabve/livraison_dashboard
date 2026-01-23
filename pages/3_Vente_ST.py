@@ -177,12 +177,29 @@ global_tab.divider()
 # ---- Grouped By Familly Etat Générale ----
 # ------------------------------------------
 global_tab.space()
-global_tab.markdown("#### 💹 **Produits par Famille**")
+global_tab.markdown("#### 📑 **Produits par Famille**")
 global_tab.space()
 
 familly_groupe, familly_chart = utils.familly_groupe(df_selected_month)     # Get the data
 widgets.table_chart_column(global_tab, familly_groupe, familly_chart)       # Display table and chart side by side
+global_tab.divider()
 
+# -------------------------------------------
+# ---- Grouped By S.Familly Etat Générale----
+# -------------------------------------------
+global_tab.space()
+global_tab.markdown("#### 📑 _Produit par Sous famille %_")
+global_tab.space()
+
+famille = df_selected_month.sort_values("Famille")["Famille"].unique()
+# Two Columns
+col1, col2 = global_tab.columns(2)
+selected_famille = col1.selectbox("Choisir la famille", famille, index=0, key="global_familly_selectbox")
+
+global_tab.space()
+sfamille_selection = df_selected_month[df_selected_month["Famille"] == selected_famille]
+sfamilly_groupe, sfamilly_chart = utils.sfamilly_groupe(sfamille_selection)     # Get Famille DF, Famille Chart
+widgets.table_chart_column(global_tab, sfamilly_groupe, sfamilly_chart)     # Display table and chart side by side
 # -------------------------------------------------------------------------------------
 #   === TAB PREVENDEUR DETAIL ===
 # -------------------------------
@@ -223,7 +240,9 @@ df_produit_prev = (
     .sort_values("qte", ascending=False)
     .rename(columns={"qte": "Quantité", "livraison": "Total Livraison", "benefice": "Total Bénéfice"})
 )
+# DF Selected Prevendeur
 df_produit_prev = df_produit_prev[df_produit_prev["PREVENDEUR"] == prevendeur]
+
 prevendeur_tab.markdown("##### 🗃 Tableaux des Produit")
 prevendeur_tab.space()
 
@@ -246,7 +265,7 @@ prevendeur_tab.divider()
 # ---- Grouped By Familly ----
 # ----------------------------
 prevendeur_tab.space()
-prevendeur_tab.markdown("#### 💹 **Produits par Famille**")
+prevendeur_tab.markdown("#### 📑 **Produits par Famille**")
 prevendeur_tab.space()
 
 familly_groupe, familly_chart = utils.familly_groupe(df_prevendeur)             # Get Famille DF, Famille Chart
