@@ -223,7 +223,6 @@ for _, row in df_selection_total_prev.iterrows():
         # prevendeur_tab.subheader(f" _{prevendeur} Détail_", divider="grey", width="content")
         prevendeur_tab.space()
         widgets.display_prevendeur_totals(prevendeur_tab, row)              # Display Total metric
-prevendeur_tab.divider()
 #
 # --- Global Data Par Prevendeur ---
 df_prevendeur = df_selected_month[df_selected_month["PREVENDEUR"] == prevendeur]
