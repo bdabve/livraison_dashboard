@@ -23,17 +23,13 @@ def table_chart_column(root, df, chart):
     chart_column.plotly_chart(chart, width="stretch")
 
 
-def display_totals(root, totals, delta=False):
+def display_totals(root, totals):
     """
     Display Total in metrics in 2 columns
     :totals: row in; for _, row in df.iterrows
     """
     col1, col2 = root.columns(2)
-    col1.metric(
-        "💰 Livraison",
-        f"{totals['livraison']:,.0f} DA",
-        border=True
-    )
+    col1.metric("💰 Livraison", f"{totals['livraison']:,.0f} DA", border=True)
     col2.metric("📈 Bénéfice", f"{totals['benefice']:,.0f} DA", border=True)
     root.divider()
 

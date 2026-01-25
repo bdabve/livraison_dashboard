@@ -171,7 +171,7 @@ def all_sheets(file_name, multiple=False):
             df["PREVENDEUR"] = sheet
 
             # This work with multiple file
-            if multiple: df["MOIS"] = file_name.name
+            if multiple: df["MOIS"] = file_name.name.replace("xlsx", "")
 
             df = df[df["Famille"].notna()]      # Drop Totals
             dfs.append(df)

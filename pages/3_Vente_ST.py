@@ -84,15 +84,18 @@ for _, row in df_total_par_mois.iterrows():
 # ----------------------------
 df_total_prevendeur_mois = utils.build_totals_prevendeur_mois(df_mois)
 
-global_tab.space()
-global_tab.subheader("🗃 _Totaux mensuels par Prevendeur_", divider="grey", width="content")
-global_tab.space()
-global_tab.dataframe(
-    df_total_prevendeur_mois[["PREVENDEUR", "MOIS", "livraison", "benefice"]],
-    hide_index=True
+pivot = df_total_prevendeur_mois.pivot_table(
+    index="PREVENDEUR",
+    columns="MOIS",
+    values=["livraison", "benefice"],
+    aggfunc="sum",
+    fill_value=0
 )
+global_tab.space()
+global_tab.subheader("📈 _Vue croisée Pré-vendeur / Mois_", divider="grey", width="content")
+global_tab.space()
+global_tab.dataframe(pivot, width="stretch")
 global_tab.divider()
-
 # --------------------
 # --- Filter Month ---
 # --------------------

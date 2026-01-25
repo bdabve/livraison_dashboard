@@ -76,38 +76,14 @@ etat_excel = utils.etat_excel_like_db(df)
 st.subheader("💰 _Etat Mensuel_", text_alignment="left", divider="gray", width="stretch")
 
 credit_column, vers_credit_column, acompte_column = st.columns(3)      # Columns
-credit_column.metric(
-    "💲 **CRÉDIT**",
-    etat_excel.get("CREDIT", 0),
-    border=True
-)
-vers_credit_column.metric(
-    "💰 **Versements CRÉDIT**",
-    etat_excel.get('VERS. CREDIT', 0),
-    border=True
-)
-acompte_column.metric(
-    "**ACCOMPTE**",
-    etat_excel.get('ACCOMPTE', 0),
-    border=True
-)
+credit_column.metric("💲 *CRÉDIT*", etat_excel.get("CREDIT", 0), border=True)
+vers_credit_column.metric( "💰 *Versements CRÉDIT*", etat_excel.get('VERS. CREDIT', 0), border=True)
+acompte_column.metric("💳 *ACCOMPTE*", etat_excel.get('ACCOMPTE', 0), border=True)
 #
 command_column, versement_column, charges_column = st.columns(3)        # Columns
-command_column.metric(
-    "🛵 *TOTAL COMMANDE:*",
-    etat_excel.get('TOTAL COMMANDE', 0),
-    border=True
-)
-versement_column.metric(
-    "🚚 *VERSEMENT:*",
-    etat_excel.get('VERSEMENT', 0),
-    border=True
-)
-charges_column.metric(
-    "💸 *CHARGES:*",
-    etat_excel.get('CHARGES', 0),
-    border=True
-)
+command_column.metric("🛵 *TOTAL COMMANDE:*", etat_excel.get('TOTAL COMMANDE', 0), border=True)
+versement_column.metric("🚚 *VERSEMENT:*", etat_excel.get('VERSEMENT', 0), border=True)
+charges_column.metric("💸 *CHARGES:*", etat_excel.get('CHARGES', 0), border=True)
 st.divider()
 
 # Convert to Pandas dataframe
@@ -134,7 +110,7 @@ widgets.table_chart_column(st, etat_excel_pd, fig_etat)
 st.divider()
 
 # ----------------------------------
-# ---- Display the daily report ----
+# ---- Report Etat Journalier   ----
 # ----------------------------------
 fields = ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF"]
 etat_journalier = utils.etat_journalier(df, fields)
@@ -169,8 +145,9 @@ st.divider()
 # --------------------------------
 st.space()
 st.subheader("🚚 _Etat Versement Par Livreur_", divider="gray", width="content")
+fields = ["VERSEMENT", "CHARGE"]
 sum_by_driver = utils.sum_by_driver(df, fields, livreur_selection=livreur)
-
+sum_by_driver = sum_by_driver.sort_values(by="VERSEMENT", ascending=False)
 # Graphique Versement par Livreur
 if len(sum_by_driver) == 0:
     st.warning("Aucun livreur sélectionné.")
@@ -192,6 +169,8 @@ st.divider()
 # ------------------------------------------
 # ---- Versement Commande Pourcentage ----
 # ------------------------------------------
+fields = ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF"]
+sum_by_driver = utils.sum_by_driver(df, fields, livreur_selection=livreur)
 sum_by_driver = sum_by_driver.reset_index()
 # Versement Chart
 etat_vers_chart = px.pie(
@@ -251,7 +230,6 @@ def day_details():
 label_column, button_column = st.columns([0.7, 0.3], vertical_alignment="bottom")
 with label_column:
     st.subheader("📅 _Détails Journée_", divider="gray", width="content")
-    # st.write("Cliquer sur le bouton pour voir les détails par jour.")
 with button_column:
     st.space("small")
     st.button("Sélectionner Le Jour.", on_click=day_details)
