@@ -18,7 +18,7 @@ FAMILLE_FIELDS = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"] 
 
 def clean_dataframe(df):
     try:
-        df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce")
+        df["DATE"] = pd.to_datetime(df["DATE"], errors="coerce").dt.date
     except KeyError:
         return {"success": False, "message": "La colonne 'DATE' est manquante dans le fichier Excel."}
 
@@ -223,10 +223,6 @@ def build_totals_prevendeur_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
     """
 
     df = df_mois.copy()
-
-    # --- Ensure numeric ---
-    # for col in ["Total livraison (DA)", "Total bénéfice (DA)"]:
-        # df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # --- Group totals ---
     df_total = (
