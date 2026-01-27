@@ -54,7 +54,7 @@ global_tab, prevendeur_tab = st.tabs(
 #
 df_total_par_mois = (
     df_mois
-    .groupby("MOIS", as_index=False)
+    .groupby(["MOIS_NUM", "MOIS"], as_index=False)
     .agg(
         livraison=("Total livraison (DA)", "sum"),
         benefice=("Total bénéfice (DA)", "sum"),
@@ -83,6 +83,10 @@ for _, row in df_total_par_mois.iterrows():
 # --- Total Par Prevendeur ---
 # ----------------------------
 df_total_prevendeur_mois = utils.build_totals_prevendeur_mois(df_mois)
+
+# -----------
+global_tab.dataframe(df_total_prevendeur_mois)
+# -----------
 
 pivot = df_total_prevendeur_mois.pivot_table(
     index="PREVENDEUR",

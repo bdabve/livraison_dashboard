@@ -171,7 +171,18 @@ def all_sheets(file_name, multiple=False):
             df["PREVENDEUR"] = sheet
 
             # This work with multiple file
-            if multiple: df["MOIS"] = file_name.name.replace("xlsx", "")
+            if multiple:
+                df["MOIS"] = file_name.name.replace(".xlsx", "")
+                # --- Month order (French) ---
+                mois_order = {
+                    "Janvier": 1, "Février": 2, "Mars": 3, "Avril": 4,
+                    "Mai": 5, "Juin": 6, "Juillet": 7, "Août": 8,
+                    "Septembre": 9, "Octobre": 10,
+                    "VENTE_NOVEMBRE_2025": 11,
+                    "VENTE_DECEMBRE_2025": 12,
+                }
+
+                df["MOIS_NUM"] = df["MOIS"].map(mois_order)
 
             df = df[df["Famille"].notna()]      # Drop Totals
             dfs.append(df)
@@ -226,23 +237,12 @@ def build_totals_prevendeur_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
 
     # --- Group totals ---
     df_total = (
-        df.groupby(["PREVENDEUR", "MOIS"], as_index=False)
+        df.groupby(["PREVENDEUR", "MOIS_NUM", "MOIS"], as_index=False)
         .agg(
             livraison=("Total livraison (DA)", "sum"),
             benefice=("Total bénéfice (DA)", "sum"),
         )
     )
-
-    # --- Month order (French) ---
-    mois_order = {
-        "Janvier": 1, "Février": 2, "Mars": 3, "Avril": 4,
-        "Mai": 5, "Juin": 6, "Juillet": 7, "Août": 8,
-        "Septembre": 9, "Octobre": 10,
-        "VENTE_NOVEMBRE_2025.xlsx": 11,
-        "VENTE_DECEMBRE_2025.xlsx": 12,
-    }
-
-    df_total["MOIS_NUM"] = df_total["MOIS"].map(mois_order)
 
     # --- Sort correctly ---
     df_total = df_total.sort_values(["PREVENDEUR", "MOIS_NUM"])

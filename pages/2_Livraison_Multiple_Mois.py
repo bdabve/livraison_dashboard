@@ -146,4 +146,3 @@ for _, row in df_total_par_mois.iterrows():
         border=True,
     )
     st.divider()
-

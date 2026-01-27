@@ -41,12 +41,13 @@ def display_prevendeur_totals(root, row):
     col1, col2 = root.columns(2)
     col1.metric(
         "💰 Livraison", f"{row['livraison']:,.0f} DA",
-        delta=f"{row['delta_livraison']:,.0f} DA",
+        delta=f"{row['livraison_prev']:,.0f} DA",
+        # delta=f"{row['delta_livraison_pct']:.1f}%" if not row['delta_livraison_pct'] is None else None,
         border=True
     )
     col2.metric(
         "📈 Bénéfice", f"{row['benefice']:,.0f} DA",
-        delta=f"{row['delta_benefice']:,.0f} DA",
+        delta=f"{row['benefice_prev']:,.0f} DA",
         border=True
     )
     root.divider()
