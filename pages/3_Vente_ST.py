@@ -40,6 +40,7 @@ else:
     df_data_mois = load_data_multiple_excel(xls_files)
     if df_data_mois["success"]:
         df_mois = df_data_mois["df"]
+        df_mois = df_mois.sort_values(by=["YEAR", "MOIS_NUM", "MOIS"])
     else:
         st.warning(df_data_mois["message"])
         st.stop()
@@ -51,29 +52,25 @@ global_tab, prevendeur_tab = st.tabs(
 )
 # ----------------------------------------------------------------
 # --- TOTALS ---
+# -----------------------------------------------
 #
+# -- DEBUG
+# global_tab.dataframe(df_mois)
+# -----------------------------------------------
+
 df_total_par_mois = utils.build_totals_mois(df_mois)
-# df_total_par_mois = (
-#     df_mois
-#     .groupby(["MOIS_NUM", "MOIS"], as_index=False)
-#     .agg(
-#         livraison=("Total livraison (DA)", "sum"),
-#         benefice=("Total bénéfice (DA)", "sum"),
-#     )
-# )
+
 # --- Grand Total ---
 df_grand_total = pd.DataFrame({
     "livraison": [df_total_par_mois["livraison"].sum()],
     "benefice": [df_total_par_mois["benefice"].sum()],
 })
 # --------------------------------------------------------
-
 global_tab.space()
 global_tab.subheader("📊 Totaux mensuels _Livraison_ & _Bénéfice_", divider="grey", width="content")
 
 # -- Display Grande Total --
 for _, row in df_grand_total.iterrows():
-    # widgets.display_totals(global_tab, row)
     col1, col2 = global_tab.columns(2)
     col1.metric("💰 Livraison", f"{row['livraison']:,.0f} DA", border=True)
     col2.metric("📈 Bénéfice", f"{row['benefice']:,.0f} DA", border=True)
@@ -81,24 +78,26 @@ global_tab.divider()
 
 # -- Display Total par MOIS --
 for _, row in df_total_par_mois.iterrows():
-    global_tab.markdown(f"##### 📆 {row['MOIS']}")
+    global_tab.markdown(f"##### 📆 {row['MOIS']} - {row['YEAR']}")
     widgets.display_totals(global_tab, row)
 
 # ----------------------------
 # --- Total Par Prevendeur ---
 # ----------------------------
 df_total_prevendeur_mois = utils.build_totals_prevendeur_mois(df_mois)
-
-# -----------
+# -----------------------------------------------
+# DEBUG
 # global_tab.dataframe(df_total_prevendeur_mois)
-# -----------
+# -----------------------------------------------
 
 pivot = df_total_prevendeur_mois.pivot_table(
     index="PREVENDEUR",
     columns="MOIS",
     values=["livraison", "benefice"],
     aggfunc="sum",
-    fill_value=0
+    fill_value=0,
+    margins=True, margins_name="Totals",
+    sort=False
 )
 global_tab.space()
 global_tab.subheader("📈 _Vue croisée Pré-vendeur / Mois_", divider="grey", width="content")
@@ -116,13 +115,15 @@ selected_month = st.sidebar.selectbox(
 )
 st.sidebar.header(f"**{selected_month}**", text_alignment="center")
 st.sidebar.divider()
+# -------------------------------------------------------------------------------
 #
 global_tab.space()
 global_tab.subheader(f"{selected_month}", text_alignment="center", divider="grey")
-#
-# DATAFRAME Total Par preveundeur for A specefic Month
-df_selection_total_prev = df_total_prevendeur_mois[df_total_prevendeur_mois["MOIS"] == selected_month]
 
+# DATAFRAME Total PREVEUNDEUR Per Month
+df_selection_total_prev = df_total_prevendeur_mois[df_total_prevendeur_mois["MOIS"] == selected_month]
+# -------------------------------
+# -------------------------------
 for _, row in df_selection_total_prev.iterrows():
     global_tab.markdown(f"##### 👤 {row['PREVENDEUR']}")
     widgets.display_prevendeur_totals(global_tab, row)

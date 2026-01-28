@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# author        : el3arbi bdabve@gmail.com
-# created       :
-# desc          :
 # ----------------------------------------------------------------------------
+import re
+import os
 import pandas as pd
 import plotly.express as px
 
-MONTHS_NAMES = {
-    "JANVIER": 1, "FÉVRIER": 2, "MARS": 3, "AVRIL": 4,
-    "MAI": 5, "JUIN": 6, "JUILLET": 7, "AOÛT": 8,
-    "SEPTEMBRE": 9, "OCTOBRE": 10, "NOVEMBRE": 11, "DECEMBRE": 12
+# --- Month order (French) ---
+mois_order = {
+    "JANVIER": 1,
+    "FÉVRIER": 2, "FEVRIER": 2,
+    "MARS": 3, "AVRIL": 4, "MAI": 5, "JUIN": 6, "JUILLET": 7,
+    "AOÛT": 8, "AOUT": 8,
+    "SEPTEMBRE": 9, "OCTOBRE": 10,
+    "NOVEMBRE": 11, "DECEMBRE": 12,
 }
+
 FAMILLE_FIELDS = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]            # Fields
 
 
@@ -155,11 +159,21 @@ def driver_observations(clean_df):
     return driver_obs.reset_index()
 
 
-# --------------------
+# ----------------------------------------------------------------------
 # ---- VENTE PAGE ----
 # --------------------
 def all_sheets(file_name, multiple=False):
     xls = pd.ExcelFile(file_name)
+    # -- Extract month and year from filename ---
+    filename = os.path.basename(file_name.name)   # VENTE_JANVIER_2026.xlsx
+    name, _ = os.path.splitext(filename)           # VENTE_JANVIER_2026
+
+    match = re.search(r"_([A-ZÉÈÊÎÔÛ]+)_(\d{4})$", name)
+    if match:
+        mois_num = match.group(1)
+        year = int(match.group(2))
+    else:
+        raise ValueError(f"Invalid filename format: {filename}")
 
     dfs = []
     cols = ["Famille", "Sous famille", "Produit", "Quantité.1", "Total livraison (DA)", "Total bénéfice (DA)"]
@@ -167,24 +181,17 @@ def all_sheets(file_name, multiple=False):
         for sheet in xls.sheet_names[1:]:
             df = pd.read_excel(file_name, sheet_name=sheet, skiprows=14, header=0)
             df = df[cols]       # Used coloumns
-            df = df.rename(columns={"Quantité.1": "Quantité"})      # rename
+
+            # -- Add Needed Columns
             df["PREVENDEUR"] = sheet
+            df["YEAR"] = year
+            df["MOIS"] = mois_num
+            df["MOIS_NUM"] = df["MOIS"].map(mois_order)
 
-            # This work with multiple file
-            if multiple:
-                df["MOIS"] = file_name.name.replace(".xlsx", "")
-                # --- Month order (French) ---
-                mois_order = {
-                    "Janvier": 1, "Février": 2, "Mars": 3, "Avril": 4,
-                    "Mai": 5, "Juin": 6, "Juillet": 7, "Août": 8,
-                    "Septembre": 9, "Octobre": 10,
-                    "VENTE_NOVEMBRE_2025": 11,
-                    "VENTE_DECEMBRE_2025": 12,
-                }
-
-                df["MOIS_NUM"] = df["MOIS"].map(mois_order)
-
+            # -- Cleaning
             df = df[df["Famille"].notna()]      # Drop Totals
+            df = df.rename(columns={"Quantité.1": "Quantité"})      # rename
+
             dfs.append(df)
 
         final_df = pd.concat(dfs, ignore_index=True)
@@ -204,29 +211,6 @@ def multiple_files(xls_files: list):
     return {"success": True, "df": final_df}
 
 
-def get_totals_vente(df, prevendeur):
-    """
-    Returns total livraison and total bénéfice.
-    If prevendeur == 'VENTE' → global totals
-    Else → totals grouped by PREVENDEUR
-    """
-    if prevendeur == "VENTE":
-        return {
-            "livraison": df["Total livraison (DA)"].sum(),
-            "benefice": df["Total bénéfice (DA)"].sum(),
-        }
-
-    grouped = (
-        df.groupby("PREVENDEUR", as_index=False)
-        .agg(
-            livraison=("Total livraison (DA)", "sum"),
-            benefice=("Total bénéfice (DA)", "sum"),
-        )
-    )
-
-    return grouped
-
-
 def build_totals_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
     """
     Totaux par MOIS avec variation par rapport au mois précédent.
@@ -235,12 +219,12 @@ def build_totals_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
     # --- Group & aggregate ---
     df_total = (
         df_mois
-        .groupby(["MOIS_NUM", "MOIS"], as_index=False)
+        .groupby(["YEAR", "MOIS_NUM", "MOIS"], as_index=False)
         .agg(
             livraison=("Total livraison (DA)", "sum"),
             benefice=("Total bénéfice (DA)", "sum"),
         )
-        .sort_values("MOIS_NUM")
+        .sort_values(["YEAR", "MOIS_NUM"])
     )
 
     # --- Deltas (month over month) ---
@@ -267,12 +251,12 @@ def build_totals_prevendeur_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
     # --- Group & aggregate ---
     df_total = (
         df_mois
-        .groupby(["PREVENDEUR", "MOIS_NUM", "MOIS"], as_index=False)
+        .groupby(["PREVENDEUR", "YEAR", "MOIS_NUM", "MOIS"], as_index=False)
         .agg(
             livraison=("Total livraison (DA)", "sum"),
             benefice=("Total bénéfice (DA)", "sum"),
         )
-        .sort_values(["PREVENDEUR", "MOIS_NUM"])
+        .sort_values(["YEAR", "MOIS_NUM"])
     )
 
     # --- Deltas (month over month per PREVENDEUR) ---
