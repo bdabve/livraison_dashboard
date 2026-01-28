@@ -29,8 +29,20 @@ def display_totals(root, totals):
     :totals: row in; for _, row in df.iterrows
     """
     col1, col2 = root.columns(2)
-    col1.metric("💰 Livraison", f"{totals['livraison']:,.0f} DA", border=True)
-    col2.metric("📈 Bénéfice", f"{totals['benefice']:,.0f} DA", border=True)
+    col1.metric(
+        "💰 Livraison",
+        f"{totals['livraison']:,.0f} DA",
+        # delta=f"{totals['livraison_prev']:,.0f} DA",
+        delta=f"{totals['delta_livraison_pct']:.1f}%" if not totals['delta_livraison_pct'] is None else 0,
+        border=True
+    )
+    col2.metric(
+        "📈 Bénéfice",
+        f"{totals['benefice']:,.0f} DA",
+        # delta=f"{totals['benefice_prev']:,.0f} DA",
+        delta=f"{totals['delta_benefice_pct']:.1f}%" if not totals['delta_benefice_pct'] is None else 0,
+        border=True
+    )
     root.divider()
 
 
@@ -41,13 +53,13 @@ def display_prevendeur_totals(root, row):
     col1, col2 = root.columns(2)
     col1.metric(
         "💰 Livraison", f"{row['livraison']:,.0f} DA",
-        delta=f"{row['livraison_prev']:,.0f} DA",
-        # delta=f"{row['delta_livraison_pct']:.1f}%" if not row['delta_livraison_pct'] is None else None,
+        # delta=f"{row['livraison_prev']:,.0f} DA",
+        delta=f"{row['delta_livraison_pct']:.1f}%" if not row['delta_livraison_pct'] is None else None,
         border=True
     )
     col2.metric(
         "📈 Bénéfice", f"{row['benefice']:,.0f} DA",
-        delta=f"{row['benefice_prev']:,.0f} DA",
+        delta=f"{row['delta_benefice_pct']:.1f}%" if not row['delta_benefice_pct'] is None else None,
         border=True
     )
     root.divider()

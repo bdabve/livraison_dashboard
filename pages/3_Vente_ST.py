@@ -52,14 +52,15 @@ global_tab, prevendeur_tab = st.tabs(
 # ----------------------------------------------------------------
 # --- TOTALS ---
 #
-df_total_par_mois = (
-    df_mois
-    .groupby(["MOIS_NUM", "MOIS"], as_index=False)
-    .agg(
-        livraison=("Total livraison (DA)", "sum"),
-        benefice=("Total bénéfice (DA)", "sum"),
-    )
-)
+df_total_par_mois = utils.build_totals_mois(df_mois)
+# df_total_par_mois = (
+#     df_mois
+#     .groupby(["MOIS_NUM", "MOIS"], as_index=False)
+#     .agg(
+#         livraison=("Total livraison (DA)", "sum"),
+#         benefice=("Total bénéfice (DA)", "sum"),
+#     )
+# )
 # --- Grand Total ---
 df_grand_total = pd.DataFrame({
     "livraison": [df_total_par_mois["livraison"].sum()],
@@ -72,7 +73,11 @@ global_tab.subheader("📊 Totaux mensuels _Livraison_ & _Bénéfice_", divider=
 
 # -- Display Grande Total --
 for _, row in df_grand_total.iterrows():
-    widgets.display_totals(global_tab, row)
+    # widgets.display_totals(global_tab, row)
+    col1, col2 = global_tab.columns(2)
+    col1.metric("💰 Livraison", f"{row['livraison']:,.0f} DA", border=True)
+    col2.metric("📈 Bénéfice", f"{row['benefice']:,.0f} DA", border=True)
+global_tab.divider()
 
 # -- Display Total par MOIS --
 for _, row in df_total_par_mois.iterrows():
@@ -85,7 +90,7 @@ for _, row in df_total_par_mois.iterrows():
 df_total_prevendeur_mois = utils.build_totals_prevendeur_mois(df_mois)
 
 # -----------
-global_tab.dataframe(df_total_prevendeur_mois)
+# global_tab.dataframe(df_total_prevendeur_mois)
 # -----------
 
 pivot = df_total_prevendeur_mois.pivot_table(

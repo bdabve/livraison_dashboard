@@ -77,7 +77,7 @@ st.subheader("💰 _Etat Mensuel_", text_alignment="left", divider="gray", width
 
 credit_column, vers_credit_column, acompte_column = st.columns(3)      # Columns
 credit_column.metric("💲 *CRÉDIT*", etat_excel.get("CREDIT", 0), border=True)
-vers_credit_column.metric( "💰 *Versements CRÉDIT*", etat_excel.get('VERS. CREDIT', 0), border=True)
+vers_credit_column.metric("💰 *Versements CRÉDIT*", etat_excel.get('VERS. CREDIT', 0), border=True)
 acompte_column.metric("💳 *ACCOMPTE*", etat_excel.get('ACCOMPTE', 0), border=True)
 #
 command_column, versement_column, charges_column = st.columns(3)        # Columns

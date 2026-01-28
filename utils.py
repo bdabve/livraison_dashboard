@@ -227,38 +227,85 @@ def get_totals_vente(df, prevendeur):
     return grouped
 
 
-def build_totals_prevendeur_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
+def build_totals_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
     """
-    Total Par Prevendeur
-    with delta of previous Mois
+    Totaux par MOIS avec variation par rapport au mois précédent.
     """
 
-    df = df_mois.copy()
-
-    # --- Group totals ---
+    # --- Group & aggregate ---
     df_total = (
-        df.groupby(["PREVENDEUR", "MOIS_NUM", "MOIS"], as_index=False)
+        df_mois
+        .groupby(["MOIS_NUM", "MOIS"], as_index=False)
         .agg(
             livraison=("Total livraison (DA)", "sum"),
             benefice=("Total bénéfice (DA)", "sum"),
         )
+        .sort_values("MOIS_NUM")
     )
 
-    # --- Sort correctly ---
-    df_total = df_total.sort_values(["PREVENDEUR", "MOIS_NUM"])
+    # --- Deltas (month over month) ---
+    df_total["delta_livraison"] = df_total["livraison"].diff().fillna(0)
+    df_total["delta_benefice"] = df_total["benefice"].diff().fillna(0)
 
-    # --- Previous month values ---
-    df_total["livraison_prev"] = df_total.groupby("PREVENDEUR")["livraison"].shift(1)
-    df_total["benefice_prev"] = df_total.groupby("PREVENDEUR")["benefice"].shift(1)
-
-    # ✅ Replace NaN with 0
-    df_total[["livraison_prev", "benefice_prev"]] = (
-        df_total[["livraison_prev", "benefice_prev"]].fillna(0)
+    # --- Percentage deltas ---
+    df_total["delta_livraison_pct"] = (
+        df_total["livraison"].pct_change().mul(100).fillna(0)
+    )
+    df_total["delta_benefice_pct"] = (
+        df_total["benefice"].pct_change().mul(100).fillna(0)
     )
 
-    # --- Delta ---
-    df_total["delta_livraison"] = df_total["livraison"] - df_total["livraison_prev"]
-    df_total["delta_benefice"] = df_total["benefice"] - df_total["benefice_prev"]
+    return df_total.reset_index(drop=True)
+
+
+def build_totals_prevendeur_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
+    """
+    Totaux par PREVENDEUR et par MOIS,
+    avec variation (delta) par rapport au mois précédent.
+    """
+
+    # --- Group & aggregate ---
+    df_total = (
+        df_mois
+        .groupby(["PREVENDEUR", "MOIS_NUM", "MOIS"], as_index=False)
+        .agg(
+            livraison=("Total livraison (DA)", "sum"),
+            benefice=("Total bénéfice (DA)", "sum"),
+        )
+        .sort_values(["PREVENDEUR", "MOIS_NUM"])
+    )
+
+    # --- Deltas (month over month per PREVENDEUR) ---
+    df_total["delta_livraison"] = (
+        df_total
+        .groupby("PREVENDEUR")["livraison"]
+        .diff()
+        .fillna(0)
+    )
+
+    df_total["delta_benefice"] = (
+        df_total
+        .groupby("PREVENDEUR")["benefice"]
+        .diff()
+        .fillna(0)
+    )
+
+    # --- Percentage deltas ---
+    df_total["delta_livraison_pct"] = (
+        df_total
+        .groupby("PREVENDEUR")["livraison"]
+        .pct_change()
+        .mul(100)
+        .fillna(0)
+    )
+
+    df_total["delta_benefice_pct"] = (
+        df_total
+        .groupby("PREVENDEUR")["benefice"]
+        .pct_change()
+        .mul(100)
+        .fillna(0)
+    )
 
     return df_total.reset_index(drop=True)
 
