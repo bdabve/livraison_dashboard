@@ -7,6 +7,11 @@ import os
 import pandas as pd
 import plotly.express as px
 
+# --- Month Names to work with Versement Day Details ---
+MONTHS_NAMES = {
+    "JANVIER": 1, "FEVRIER": 2, "MARS": 3, "AVRIL": 4, "MAI": 5, "JUIN": 6, "JUILLET": 7,
+    "AOUT": 8, "SEPTEMBRE": 9, "OCTOBRE": 10, "NOVEMBRE": 11, "DECEMBRE": 12,
+}
 # --- Month order (French) ---
 mois_order = {
     "JANVIER": 1,
@@ -18,6 +23,89 @@ mois_order = {
 }
 
 FAMILLE_FIELDS = ["Quantité", "Total livraison (DA)", "Total bénéfice (DA)"]            # Fields
+
+
+# ------------------------------------------------------
+# --- LIVRAISON PAGE ---
+# ---------------------
+def read_livraison_multi_year(files, selected_months):
+    """
+    Load multiple Excel files (years) and multiple months into one DataFrame.
+    Filename must contain YEAR (e.g. LIVRAISON_2024.xlsx)
+    """
+
+    if not selected_months:
+        return {"success": False, "message": "Aucun mois sélectionné."}
+
+    if not isinstance(files, (list, tuple)):
+        files = [files]
+
+    dfs = []
+
+    try:
+        for file in files:
+            # --- Extract YEAR from filename ---
+            filename = os.path.basename(file.name)
+            match = re.search(r"(\d{4})", filename)
+
+            if not match:
+                raise ValueError(f"Année introuvable dans le fichier: {filename}")
+
+            year = int(match.group(1))
+
+            # --- Read selected months ---
+            for month in selected_months:
+                if month not in pd.ExcelFile(file, None).sheet_names:
+                    continue
+                result = clean_dataframe(
+                    pd.read_excel(file, sheet_name=month, usecols="A:H")
+                )
+
+                if not result["success"]:
+                    return {"success": False, "message": result["message"]}
+
+                df = (
+                    result["df"].copy()
+                    .assign(
+                        YEAR=year,
+                        MOIS=month,
+                        MOIS_NUM=lambda x: x["MOIS"].map(mois_order),
+                    )
+                )
+                dfs.append(df)
+
+        final_df = pd.concat(dfs, ignore_index=True).sort_values(["YEAR", "MOIS_NUM"])
+        # .drop(columns="MOIS_NUM")
+
+        return {"success": True, "data": final_df}
+
+    except ValueError as err:
+        return {"success": False, "message": str(err)}
+
+
+def read_livraison_files(excel_file, selected_months):
+    """
+    This function load multipla months in one df
+    """
+    dfs = []
+    for month in selected_months:
+        data = clean_dataframe(pd.read_excel(excel_file, sheet_name=month, usecols="A:H"))
+        if data["success"]:
+            df = data["df"]
+            df["MOIS"] = month
+            # --- Month order (French) ---
+            df["MOIS_NUM"] = df["MOIS"].map(mois_order)
+            df = df.sort_values("MOIS_NUM")             # .drop(columns=["MOIS_NUM"])
+
+            dfs.append(df)
+        else:
+            return {"success": False, "message": data["message"]}
+    try:
+        dfs = pd.concat(dfs, ignore_index=True)
+    except ValueError:
+        return {"success": False, "message": "Aucun mois sélectionné."}
+    else:
+        return {"success": True, "data": dfs}
 
 
 def clean_dataframe(df):
@@ -67,26 +155,6 @@ def etat_excel_like_db(clean_df):
     return etat_excel
 
 
-def etat_journalier(clean_df, fields):
-    """
-    Total par jour avec ligne des totaux
-    :clean_df: clean by date
-    :fields: list of fields to sum
-    """
-    # --- SUM By Date
-    daily_stats = clean_df.groupby("DATE")[fields].sum()       # without observation
-    daily_stats = daily_stats.sort_values(by="DATE", ascending=True)
-    # daily_stats.index = daily_stats.index.date  # Convert to date only
-
-    # Create totals row
-    total_row = pd.DataFrame(daily_stats.sum()).T
-    total_row.index = ["TOTAL"]
-    # Append totals inside table
-    etat_journalier = pd.concat([daily_stats, total_row])
-    etat_journalier.index.name = "Date"
-    return etat_journalier.reset_index()
-
-
 def sum_by_driver(clean_df, fields, livreur_selection=["AMINE", "TOUFIK", "REDA", "MOHAMED"]):
     """
     ETAT TOTAL BY LIVREUR
@@ -102,30 +170,34 @@ def sum_by_driver(clean_df, fields, livreur_selection=["AMINE", "TOUFIK", "REDA"
 
 def driver_retour(clean_df):
     """
-    Calculate the difference between 'T. COMMANDE' and 'T.LOGICIEL'
-    and return detailed rows + sum grouped by livreur.
+    Calculate RETOUR = T. COMMANDE - T.LOGICIEL
+    Returns:
+        - Detailed rows (with TOTAL row)
+        - Sum of RETOUR grouped by LIVREUR
     """
-    df = clean_df.copy()
-    df["RETOUR"] = df["T. COMMANDE"] - df["T.LOGICIEL"]
-
-    retour = df[["DATE", "LIVREUR", "T. COMMANDE", "T.LOGICIEL", "RETOUR"]].dropna().copy()
-    # Format DATE
-    retour["DATE"] = retour["DATE"].dt.strftime("%d/%m/%Y")
-
-    # === TOTAL ROW ===
-    total_row = {
-        "DATE": "",
+    df = clean_df.copy()                                    # --- Work on a copy
+    df["RETOUR"] = df["T. COMMANDE"] - df["T.LOGICIEL"]     # --- Compute RETOUR
+    # --- Keep needed columns & drop NaNs
+    retour = (
+        df[["DATE", "LIVREUR", "T. COMMANDE", "T.LOGICIEL", "RETOUR"]]
+        .dropna(subset=["T. COMMANDE", "T.LOGICIEL"])
+        .copy()
+    )
+    # --- Sum RETOUR by driver (BEFORE adding TOTAL row)
+    sum_retour_by_driver = (
+        retour.groupby("LIVREUR", as_index=False)["RETOUR"]
+        .sum()
+    )
+    # --- TOTAL row
+    total_row = pd.DataFrame([{
+        "DATE": None,
         "LIVREUR": "TOTAL",
         "T. COMMANDE": retour["T. COMMANDE"].sum(),
         "T.LOGICIEL": retour["T.LOGICIEL"].sum(),
         "RETOUR": retour["RETOUR"].sum(),
-    }
-
-    # Append total row
-    retour = pd.concat([retour, pd.DataFrame([total_row])], ignore_index=True)
-
-    sum_retour_by_driver = (retour.groupby("LIVREUR")["RETOUR"].sum().reset_index())
-
+    }])
+    # --- Append TOTAL row
+    retour = pd.concat([retour, total_row], ignore_index=True)
     return retour, sum_retour_by_driver
 
 
@@ -136,16 +208,16 @@ def get_day_details(clean_df, day, fields):
     :day: str or datetime [YYYY-MM-DD]
     :fields: list of fields to sum
     """
-    daily_details = clean_df.groupby(["DATE", "LIVREUR"])[fields].sum()
-    # daily_details = daily_details.sort_values(by="T.LOGICIEL", ascending=False)
+    day = pd.to_datetime(day, errors="coerce").date()
+    daily_details = (
+        clean_df
+        .groupby(["DATE", "LIVREUR"], as_index=False)[fields]
+        .sum()
+    )
     daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
 
-    # Convert input to datetime
-    day = pd.to_datetime(day).normalize()
-
-    if day in daily_details.index.get_level_values("DATE"):
-        # TODO: return selected livreur
-        return {"success": True, "data": daily_details.loc[day].reset_index()}
+    if day in daily_details["DATE"].values:
+        return {"success": True, "data": daily_details[daily_details["DATE"] == day]}
     else:
         return {"success": False, "data": "No data"}
 
@@ -162,53 +234,54 @@ def driver_observations(clean_df):
 # ----------------------------------------------------------------------
 # ---- VENTE PAGE ----
 # --------------------
-def all_sheets(file_name, multiple=False):
-    xls = pd.ExcelFile(file_name)
-    # -- Extract month and year from filename ---
-    filename = os.path.basename(file_name.name)   # VENTE_JANVIER_2026.xlsx
-    name, _ = os.path.splitext(filename)           # VENTE_JANVIER_2026
-
-    match = re.search(r"_([A-ZÉÈÊÎÔÛ]+)_(\d{4})$", name)
-    if match:
-        mois_num = match.group(1)
-        year = int(match.group(2))
-    else:
-        raise ValueError(f"Invalid filename format: {filename}")
+def read_sales_files(files):
+    # Accept single file or list of files
+    if not isinstance(files, (list, tuple)):
+        files = [files]
 
     dfs = []
     cols = ["Famille", "Sous famille", "Produit", "Quantité.1", "Total livraison (DA)", "Total bénéfice (DA)"]
+
     try:
-        for sheet in xls.sheet_names[1:]:
-            df = pd.read_excel(file_name, sheet_name=sheet, skiprows=14, header=0)
-            df = df[cols]       # Used coloumns
+        for file in files:
+            xls = pd.ExcelFile(file)
 
-            # -- Add Needed Columns
-            df["PREVENDEUR"] = sheet
-            df["YEAR"] = year
-            df["MOIS"] = mois_num
-            df["MOIS_NUM"] = df["MOIS"].map(mois_order)
+            # --- Extract month & year from filename ---
+            filename = os.path.basename(file.name)  # VENTE_JANVIER_2026.xlsx
+            name, _ = os.path.splitext(filename)
 
-            # -- Cleaning
-            df = df[df["Famille"].notna()]      # Drop Totals
-            df = df.rename(columns={"Quantité.1": "Quantité"})      # rename
+            match = re.search(r"_([A-ZÉÈÊÎÔÛ]+)_(\d{4})$", name)
+            if not match:
+                return {"success": False, "message": f"Fichier invalide: {filename}"}
 
-            dfs.append(df)
+            mois = match.group(1)
+            year = int(match.group(2))
 
+            # --- Read sheets ---
+            for sheet in xls.sheet_names[1:]:
+                df = pd.read_excel(
+                    file,
+                    sheet_name=sheet,
+                    skiprows=14,
+                    header=0,
+                    usecols=cols,
+                )
+                df = (
+                    df[df["Famille"].notna()]              # Drop totals
+                    .rename(columns={"Quantité.1": "Quantité"})
+                    .assign(
+                        PREVENDEUR=sheet,
+                        YEAR=year,
+                        MOIS=mois,
+                        MOIS_NUM=lambda x: x["MOIS"].map(mois_order),
+                    )
+                )
+                dfs.append(df)
         final_df = pd.concat(dfs, ignore_index=True)
+        final_df.sort_values(by=["YEAR", "MOIS_NUM", "MOIS"])
         return {"success": True, "df": final_df}
     except Exception as err:
-        return {"success": False, "message": err}
-
-
-def multiple_files(xls_files: list):
-    dfs = []
-    for up_file in xls_files:
-        data = all_sheets(up_file, multiple=True)
-        if data["success"]: dfs.append(data["df"])
-        else: return {"success": False, "message": data["message"]}
-
-    final_df = pd.concat(dfs, ignore_index=True)
-    return {"success": True, "df": final_df}
+        return {"success": False, "message": str(err)}
 
 
 def build_totals_mois(df_mois: pd.DataFrame) -> pd.DataFrame:

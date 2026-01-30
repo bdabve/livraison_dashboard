@@ -17,7 +17,7 @@ st.space()
 
 @st.cache_data
 def load_data_multiple_excel(xls_files: list):
-    data = utils.multiple_files(xls_files)
+    data = utils.read_sales_files(xls_files)
     return data
 
 
@@ -34,7 +34,6 @@ else:
     df_data_mois = load_data_multiple_excel(xls_files)
     if df_data_mois["success"]:
         df_mois = df_data_mois["df"]
-        df_mois = df_mois.sort_values(by=["YEAR", "MOIS_NUM", "MOIS"])
     else:
         st.warning(df_data_mois["message"])
         st.stop()
@@ -98,6 +97,7 @@ global_tab.subheader("📈 _Vue croisée Pré-vendeur / Mois_", divider="grey", 
 global_tab.space()
 global_tab.dataframe(pivot, width="stretch")
 global_tab.divider()
+
 # --------------------
 # --- Filter Month ---
 # --------------------
@@ -114,9 +114,8 @@ st.sidebar.divider()
 global_tab.space()
 global_tab.subheader(f"{selected_month}", text_alignment="center", divider="grey")
 
-# DATAFRAME Total PREVEUNDEUR Per Month
+# DATAFRAME Totals PREVEUNDEUR Per Month
 df_selection_total_prev = df_total_prevendeur_mois[df_total_prevendeur_mois["MOIS"] == selected_month]
-# -------------------------------
 # -------------------------------
 for _, row in df_selection_total_prev.iterrows():
     global_tab.markdown(f"##### 👤 {row['PREVENDEUR']}")
@@ -207,7 +206,7 @@ global_tab.space()
 sfamille_selection = df_selected_month[df_selected_month["Famille"] == selected_famille]
 sfamilly_groupe, sfamilly_chart = utils.sfamilly_groupe(sfamille_selection)     # Get Famille DF, Famille Chart
 widgets.table_chart_column(global_tab, sfamilly_groupe, sfamilly_chart)     # Display table and chart side by side
-# -------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------
 #   === TAB PREVENDEUR DETAIL ===
 # -------------------------------
 #
@@ -227,10 +226,9 @@ prevendeur_tab.space()      # First Space Tab
 for _, row in df_selection_total_prev.iterrows():
     if row['PREVENDEUR'] == prevendeur:
         prevendeur_tab.markdown(f"#### 🛵 _{prevendeur} Détails_")
-        # prevendeur_tab.subheader(f" _{prevendeur} Détail_", divider="grey", width="content")
         prevendeur_tab.space()
         widgets.display_prevendeur_totals(prevendeur_tab, row)              # Display Total metric
-#
+
 # --- Global Data Par Prevendeur ---
 df_prevendeur = df_selected_month[df_selected_month["PREVENDEUR"] == prevendeur]
 #
@@ -246,7 +244,7 @@ df_produit_prev = (
     .sort_values("qte", ascending=False)
     .rename(columns={"qte": "Quantité", "livraison": "Total Livraison", "benefice": "Total Bénéfice"})
 )
-# DF Selected Prevendeur
+# DF Product Par Prevendeur
 df_produit_prev = df_produit_prev[df_produit_prev["PREVENDEUR"] == prevendeur]
 
 prevendeur_tab.markdown("##### 🗃 Tableaux des Produit")

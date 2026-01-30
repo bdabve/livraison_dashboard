@@ -1,34 +1,13 @@
 import streamlit as st
 import pandas as pd
 import utils
+import plotly.express as px
 
 
 @st.cache_data
 def load_date_from_excel(excel_file, selected_months):
-    dfs = []
-    for month in selected_months:
-        data = utils.clean_dataframe(pd.read_excel(excel_file, sheet_name=month, usecols="A:H"))
-        if data["success"]:
-            df = data["df"]
-            df["MOIS"] = month
-            # --- Month order (French) ---
-            mois_order = {
-                "JANVIER": 1, "FEVRIER": 2, "MARS": 3, "AVRIL": 4,
-                "MAI": 5, "JUIN": 6, "JUILLET": 7, "AOÛT": 8,
-                "SEPTEMBRE": 9, "OCTOBRE": 10, "NOVEMBRE": 11, "DECEMBRE": 12,
-            }
-            df["MOIS_NUM"] = df["MOIS"].map(mois_order)
-            df = df.sort_values("MOIS_NUM")             # .drop(columns=["MOIS_NUM"])
-
-            dfs.append(df)
-        else:
-            return {"success": False, "message": data["message"]}
-    try:
-        dfs = pd.concat(dfs, ignore_index=True)
-    except ValueError:
-        return {"success": False, "message": "Aucun mois sélectionné."}
-    else:
-        return {"success": True, "data": dfs}
+    return utils.read_livraison_multi_year(excel_file, selected_months)
+    # return utils.read_livraison_files(excel_file, selected_months)
 
 
 # Page configuration
@@ -39,6 +18,7 @@ st.space()
 # Load data
 excel_file = st.file_uploader(
     "Télécharger le fichier Excel de Livraison",
+    accept_multiple_files=True,
     type=["xlsx"]
 )
 
@@ -46,8 +26,12 @@ if not excel_file:
     st.warning("Please upload an Excel file to proceed.")
     st.stop()
 else:
-    f = pd.ExcelFile(excel_file)
-    months = f.sheet_names
+    months = list()
+    for file in excel_file:
+        f = pd.ExcelFile(file)
+        for sheet in f.sheet_names:
+            months.append(sheet)
+    # Select Months
     selected_months = st.multiselect("Select months", months, default=months)
 
 
@@ -60,12 +44,72 @@ else:
 
 st.divider()
 # ----------------------------------------------------------------------------
-# ------- ETAT GLOBAL -------
-fields = ["MOIS", "MOIS_NUM", "DATE", "LIVREUR", "T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"]
+#
+# ---- ETAT GLOBAL -------
+fields = ["YEAR", "MOIS", "MOIS_NUM", "DATE", "LIVREUR", "T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"]
 st.subheader("📊 État Global des Livraisons")
 st.space()
 st.dataframe(dfs[fields], width="stretch", hide_index=True)
+st.divider()
+#
+# ---- Pivot Table Yearly
+dfs["YEAR"] = dfs["YEAR"].astype(str)
+year_pivot = pd.pivot_table(
+    dfs,
+    index=["YEAR", "MOIS"],
+    values=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"],
+    aggfunc="sum",
+    margins=True, margins_name="Total Général",
+    fill_value=0,
+    sort=False,
+)
+st.markdown("##### 📋 Tableau Croisé des Livraisons par Année et Mois")
+st.dataframe(year_pivot, width="stretch")
+st.divider()
+#
+# --- Pivot Table Mois Livreur---
+pivot = pd.pivot_table(
+    dfs,
+    index=["MOIS", "LIVREUR"],
+    values=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"],
+    aggfunc="sum",
+    margins=True, margins_name="Total Général",
+    fill_value=0,
+    sort=False,
+)
 st.space()
+st.markdown("##### 📋 Tableau Croisé des Livraisons par Mois et Livreur")
+st.dataframe(pivot, width="stretch")
+
+# --- Chart
+st.space()
+st.subheader("📈 Visualisation des Livraisons par Mois")
+chart_data = (
+    dfs
+    .groupby(["YEAR", "MOIS", "MOIS_NUM"], as_index=False)
+    .agg(
+        versement=("VERSEMENT", "sum"),
+        commandes=("T. COMMANDE", "sum"),
+        charges=("CHARGE", "sum")
+    )
+    .sort_values(["YEAR", "MOIS_NUM"])
+    .set_index("MOIS")
+)
+chart_by_mois = px.histogram(
+    chart_data,
+    x=chart_data.index,
+    y=["versement", "commandes", "charges"],
+    barmode="group",
+    title="Livraisons par Mois",
+    labels={
+        "value": "Montant (DA)",
+        "MOIS": "Mois",
+        "variable": "Type"
+    },
+    height=400,
+)
+st.plotly_chart(chart_by_mois, width="stretch")
+
 # ----------------------------------------------------------------------------
 # --- Filter Month ---
 #
@@ -81,13 +125,13 @@ st.sidebar.divider()
 # --- Etat par MOIS ---
 df_total_par_mois = (
     dfs
-    .groupby(["MOIS_NUM", "MOIS"], as_index=False)
+    .groupby(["YEAR", "MOIS_NUM", "MOIS"], as_index=False)
     .agg(
         versement=("VERSEMENT", "sum"),
         commandes=("T. COMMANDE", "sum"),
         charges=("CHARGE", "sum")
     )
-    .sort_values("MOIS_NUM")
+    .sort_values("YEAR")
 )
 # --- Calculate Deltas ---
 df_total_par_mois["delta_versement"] = df_total_par_mois["versement"].diff()

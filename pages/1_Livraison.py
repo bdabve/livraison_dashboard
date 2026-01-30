@@ -33,6 +33,15 @@ if not excel_file:
     st.warning("Please upload an Excel file to proceed.")
     st.stop()
 else:
+    import os, re
+    filename = os.path.basename(excel_file.name)  # VENTE_JANVIER_2026.xlsx
+    name, _ = os.path.splitext(filename)
+    match = re.search(r"_([A-ZÉÈÊÎÔÛ]+)_(\d{4})$", name)
+    if not match:
+        pass
+    year = int(match.group(2))
+
+    st.text(f"Year: {year}")
     f = pd.ExcelFile(excel_file)
     sheets = f.sheet_names
     st.space("medium")
@@ -75,15 +84,16 @@ etat_excel = utils.etat_excel_like_db(df)
 
 st.subheader("💰 _Etat Mensuel_", text_alignment="left", divider="gray", width="stretch")
 
+# Metrics for Etats Excel
 credit_column, vers_credit_column, acompte_column = st.columns(3)      # Columns
-credit_column.metric("💲 *CRÉDIT*", etat_excel.get("CREDIT", 0), border=True)
-vers_credit_column.metric("💰 *Versements CRÉDIT*", etat_excel.get('VERS. CREDIT', 0), border=True)
-acompte_column.metric("💳 *ACCOMPTE*", etat_excel.get('ACCOMPTE', 0), border=True)
+credit_column.metric("💲 *CRÉDIT:* ", etat_excel.get("CREDIT", 0), border=True)
+vers_credit_column.metric("💰 *Versements CRÉDIT:* ", etat_excel.get('VERS. CREDIT', 0), border=True)
+acompte_column.metric("💳 *ACCOMPTE:* ", etat_excel.get('ACCOMPTE', 0), border=True)
 #
 command_column, versement_column, charges_column = st.columns(3)        # Columns
-command_column.metric("🛵 *TOTAL COMMANDE:*", etat_excel.get('TOTAL COMMANDE', 0), border=True)
-versement_column.metric("🚚 *VERSEMENT:*", etat_excel.get('VERSEMENT', 0), border=True)
-charges_column.metric("💸 *CHARGES:*", etat_excel.get('CHARGES', 0), border=True)
+command_column.metric("🛵 *TOTAL COMMANDE:* ", etat_excel.get('TOTAL COMMANDE', 0), border=True)
+versement_column.metric("🚚 *VERSEMENT:* ", etat_excel.get('VERSEMENT', 0), border=True)
+charges_column.metric("💸 *CHARGES:* ", etat_excel.get('CHARGES', 0), border=True)
 st.divider()
 
 # Convert to Pandas dataframe
@@ -113,30 +123,48 @@ st.divider()
 # ---- Report Etat Journalier   ----
 # ----------------------------------
 fields = ["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE", "DIFF"]
-etat_journalier = utils.etat_journalier(df, fields)
-
 st.subheader("📋 _Etat Journalier_", divider="gray", width="content")
-st.dataframe(
-    etat_journalier,
-    column_config={"DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY")},
-    hide_index=True
+etat_journalier = pd.pivot_table(
+    df,
+    index="DATE",
+    values=fields,
+    aggfunc="sum",
+    margins=True, margins_name="TOTAL",
+    fill_value=0,
+    sort=False
 )
+etat_journalier.name = "Date"
+st.dataframe(etat_journalier)       # Dispaly in Streamlit
 st.divider()
 
 # --------------------------------------------------
 # ---- Graphique Versement et Commande Par Jour ----
 # --------------------------------------------------
 st.subheader("💵 Etat _Versements_, _Commandes_ Par Jours", divider="gray", width="content")
-df_plot = etat_journalier[etat_journalier["Date"] != "TOTAL"]
+# Prepare the data for the Chart
+df_plot = (
+    df.groupby("DATE")[["VERSEMENT", "T. COMMANDE"]]
+    .sum()
+    .sort_index()
+    .reset_index()
+)
+# Build the Chart
 fig_versement = px.line(
     df_plot,
-    x="Date",
+    x="DATE",
     y=["VERSEMENT", "T. COMMANDE"],
-    hover_data={"Date": "|%B %d, %Y"},
+    markers=True,
+    hover_data={"DATE": "|%B %d, %Y"},
     template="plotly_white",
 )
 
-# Display the charts
+fig_versement.update_layout(
+    title="Évolution des versements et commandes",
+    xaxis_title="Date",
+    yaxis_title="Montant (DA)",
+    legend_title="Type",
+)
+# Display the Chart
 st.plotly_chart(fig_versement, width="stretch")
 st.divider()
 
@@ -161,6 +189,11 @@ else:
         # title="<b>Versement par Livreur</b>",
         text_auto=True,
         template="plotly_white",
+    )
+    fig_livreur.update_layout(
+        xaxis_title="Livreur",
+        yaxis_title="Montant (DA)",
+        legend_title="Type",
     )
     # display the chart
     widgets.table_chart_column(st, sum_by_driver.reset_index(), fig_livreur)
@@ -221,15 +254,14 @@ def day_details():
     import datetime
     st.write("Entrée la date:")
     month_num = utils.MONTHS_NAMES.get(sheet_name)
-    date = st.date_input("Date:", datetime.date(2025, month_num, 1))
+    date = st.date_input("Date:", datetime.date(year, month_num, 1))
     if st.button("Submit"):
         st.session_state.day_details = {"day_details": date}
         st.rerun()
 
 
 label_column, button_column = st.columns([0.7, 0.3], vertical_alignment="bottom")
-with label_column:
-    st.subheader("📅 _Détails Journée_", divider="gray", width="content")
+label_column.subheader("📅 _Détails Journée_", divider="gray", width="content")
 with button_column:
     st.space("small")
     st.button("Sélectionner Le Jour.", on_click=day_details)
@@ -239,7 +271,6 @@ if "day_details" not in st.session_state:
     pass
 else:
     date = st.session_state.day_details["day_details"]
-    # st.subheader(f"📅 _Détails pour le {}_", divider="gray", width="content")
     st.space("medium")
     fields = st.pills(
         "Sélectionner les champs à afficher:",
