@@ -112,25 +112,21 @@ def download_all_etats(driver, dated, datef):
 
 
 def merge_excels_with_sheetnames(input_folder, output_file):
-    # excel_files = sorted([
-    #     f for f in os.listdir(input_folder)
-    #     if f.endswith((".xlsx", ".xls"))
-    # ])
-    excel_files = []
-    for f in os.listdir(input_folder):
-        if f.endswith((".xlsx", ".xls")):
-            excel_files.append((f, f.replace(".xlsx", "")))
+    excel_files = sorted([
+        f for f in os.listdir(input_folder)
+        if f.endswith((".xlsx", ".xls"))
+    ])
     print(excel_files)
-    return
-    if len(excel_files) != len(sheet_names):
-        raise ValueError(
-            f"Number of files ({len(excel_files)}) "
-            f"must match number of sheet names ({len(sheet_names)})"
-        )
+    # if len(excel_files) != len(sheet_names):
+        # raise ValueError(
+            # f"Number of files ({len(excel_files)}) "
+            # f"must match number of sheet names ({len(sheet_names)})"
+        # )
 
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
-        for file, sheet_name in zip(excel_files, sheet_names):
+        for file in excel_files:
             file_path = os.path.join(input_folder, file)
+            sheet_name = os.path.splitext(file)[0]
 
             print(f"Adding {file} -> sheet: {sheet_name}")
 
