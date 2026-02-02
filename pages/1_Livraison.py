@@ -41,7 +41,9 @@ else:
         pass
     year = int(match.group(2))
 
-    st.text(f"Year: {year}")
+    # Todo input year
+    year_selection = st.selectbox("Sélectionner l'année:", options=[year], index=0, key="year_select")
+    st.text(f"Year: {year_selection}")
     f = pd.ExcelFile(excel_file)
     sheets = f.sheet_names
     st.space("medium")
