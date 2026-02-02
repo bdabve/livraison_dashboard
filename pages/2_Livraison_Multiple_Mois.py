@@ -49,7 +49,7 @@ st.divider()
 fields = ["YEAR", "MOIS", "MOIS_NUM", "DATE", "LIVREUR", "T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"]
 st.subheader("📊 État Global des Livraisons")
 st.space()
-st.dataframe(dfs[fields], width="stretch", hide_index=True)
+# st.dataframe(dfs[fields], width="stretch", hide_index=True)
 st.divider()
 #
 # ---- Pivot Table Yearly

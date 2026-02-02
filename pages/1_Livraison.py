@@ -272,6 +272,8 @@ if "day_details" not in st.session_state:
 else:
     date = st.session_state.day_details["day_details"]
     st.space("medium")
+
+    # Get Fields from pills
     fields = st.pills(
         "Sélectionner les champs à afficher:",
         options=df.columns.tolist()[2:],        # skip the DATE and LIVREUR column
@@ -285,12 +287,22 @@ else:
         st.warning("Aucune donnée pour cette date.")
     else:
         day_details = day_details["data"]
+
         st.dataframe(
             day_details,
             column_config={"DATE": st.column_config.DateColumn("DATE", format="DD-MM-YYYY")},
             hide_index=True,
             width="stretch"
         )
+        # day_details = pd.pivot_table(
+            # day_details,
+            # index="DATE",
+            # values=fields,
+            # aggfunc="sum",
+            # margins=True, margins_name="TOTAL",
+            # fill_value=0,
+            # sort=False
+        # )
 st.divider()
 
 # ----------------------
@@ -300,13 +312,13 @@ st.subheader("🧾 Les Observations", divider="gray", width="content")
 observations = utils.driver_observations(df)
 options_column, display_column = st.columns([0.4, 0.6], border=True, gap="small")
 with options_column:
-    option = st.selectbox(
+    obs_livreur = st.selectbox(
         "Sélectionner le livreur pour voir les observations:",
         options=observations["LIVREUR"].unique()
     )
 with display_column:
-    filtered_observations = observations[observations["LIVREUR"] == option]
-    st.markdown(f"##### Observations pour le livreur: {option}")
+    filtered_observations = observations[observations["LIVREUR"] == obs_livreur]
+    # st.markdown(f"##### **{obs_livreur}** Observations")
     for obs in filtered_observations["OBSERVATION"]:
         parts = obs.split("•")
         cleaned_lines = []

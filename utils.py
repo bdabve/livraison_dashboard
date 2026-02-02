@@ -214,7 +214,10 @@ def get_day_details(clean_df, day, fields):
         .groupby(["DATE", "LIVREUR"], as_index=False)[fields]
         .sum()
     )
-    daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
+    # try:
+        # daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
+    # except KeyError:
+        # pass
 
     if day in daily_details["DATE"].values:
         return {"success": True, "data": daily_details[daily_details["DATE"] == day]}

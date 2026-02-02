@@ -51,6 +51,7 @@ Le dashboard facilite le suivi des ventes, versements, charges et commandes à t
 ## 📸 Captures d’écran Versement Livreuer
 
 ### État Mensuel
+![État Génerale](./screenshots/LIVRAISON_PAR_MOIS.png)
 ![État des charges, versement, accompte](./screenshots/etat_mensuel.png)
 
 ### État Journalier
