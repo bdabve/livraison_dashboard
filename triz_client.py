@@ -111,12 +111,17 @@ def download_all_etats(driver, dated, datef):
         download_etat_prevendeur(driver, dated, datef, camion=camion)
 
 
-def merge_excels_with_sheetnames(input_folder, output_file, sheet_names):
-    excel_files = sorted([
-        f for f in os.listdir(input_folder)
-        if f.endswith((".xlsx", ".xls"))
-    ])
-
+def merge_excels_with_sheetnames(input_folder, output_file):
+    # excel_files = sorted([
+    #     f for f in os.listdir(input_folder)
+    #     if f.endswith((".xlsx", ".xls"))
+    # ])
+    excel_files = []
+    for f in os.listdir(input_folder):
+        if f.endswith((".xlsx", ".xls")):
+            excel_files.append((f, f.replace(".xlsx", "")))
+    print(excel_files)
+    return
     if len(excel_files) != len(sheet_names):
         raise ValueError(
             f"Number of files ({len(excel_files)}) "
@@ -144,15 +149,15 @@ if __name__ == '__main__':
     # driver = create_driver()
     # result = login(driver, username, passwd)
     # if result["success"]:
-    #    # # ------
-    #    # print(result["message"])
-    #    # dated = "01-01-2026"
-    #    # datef = "31-01-2026"
-    #    # download_all_etats(driver, dated, datef)
+    #     # # ------
+    #     print(result["message"])
+    #     dated = "01-01-2026"
+    #     datef = "31-01-2026"
+    #     download_all_etats(driver, dated, datef)
     # else:
-    #    # print(result["message"])
+    #     print(result["message"])
 
     input_folder = "./triz_downloads"
     output_file = "VENTE_JANVIER_2026.xlsx"
-    sheet_names = ["WALID", "MOHAMED", "FETHI", "MM", "VENTE"]
-    merge_excels_with_sheetnames(input_folder, output_file, sheet_names)
+    # sheet_names = ["WALID", "MOHAMED", "FETHI", "MM", "VENTE"]
+    merge_excels_with_sheetnames(input_folder, output_file)
