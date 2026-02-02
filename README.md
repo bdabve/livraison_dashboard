@@ -41,8 +41,6 @@ Le dashboard facilite le suivi des ventes, versements, charges et commandes à t
 ### Pourcentage des livraisons et du bénéfice
 ![Pourcentage des livraisons et du bénéfice](./screenshots/VENTE/livraison_benefice_purcent.png)
 
-> 📌 Place tes images dans le dossier `screenshots/` et adapte les noms si nécessaire.
-
 ---
 
 ## 📄 Format du fichier Excel (TrizStock)
@@ -72,7 +70,7 @@ Le dashboard facilite le suivi des ventes, versements, charges et commandes à t
 | Thursday 01-01 | TOUFIK       | 300,940.00     | 300,940.00  | 299,130.00   | 1,800.00 | (10.00)  | 1800 Contrôle Technique |
 | Thursday 01-01 | REDA         | 314,487.00     | 314,487.00  | 314,355.00   |          | (132.00) | 
 | Thursday 01-01 | CREDIT       |                | (28,935.00) |              |          |          | 12420 Boughrassa (Toufik), 
-                                                                                         |          | 16515 Wahab Gouraya (Reda) |
+|                 |               |                 |              |               |           |          | 16515 Wahab Gouraya (Reda) |
 | Thursday 01-01 | VERS. CREDIT |                | 8,265.00    |              |          |          | 8265 AG Mekaoui Ali (Reda) |
 | Thursday 01-01 | ACCOMPTE     |                | 0.00        |              |          |          | |
 | Thursday 01-01 | N.B          |                | 400.00      |              |          |      | 400 Vente au Dépos |
