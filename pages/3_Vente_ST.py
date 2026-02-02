@@ -101,7 +101,7 @@ global_tab.divider()
 # --------------------
 # --- Filter Month ---
 # --------------------
-months = df_total_prevendeur_mois.sort_values("MOIS_NUM")["MOIS"].unique()
+months = df_total_prevendeur_mois.sort_values(["YEAR", "MOIS_NUM"])["MOIS"].unique()
 selected_month = st.sidebar.selectbox(
     "📅 Choisir le mois",
     months,
