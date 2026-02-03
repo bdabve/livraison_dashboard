@@ -33,37 +33,30 @@ def read_livraison_multi_year(files, selected_months):
     Load multiple Excel files (years) and multiple months into one DataFrame.
     Filename must contain YEAR (e.g. LIVRAISON_2024.xlsx)
     """
-
     if not selected_months:
         return {"success": False, "message": "Aucun mois sélectionné."}
 
-    if not isinstance(files, (list, tuple)):
-        files = [files]
-
+    files = list(files) if not isinstance(files, (list, tuple)) else files
     dfs = []
-
     try:
         for file in files:
             # --- Extract YEAR from filename ---
             filename = os.path.basename(file.name)
             match = re.search(r"(\d{4})", filename)
-
             if not match:
-                raise ValueError(f"Année introuvable dans le fichier: {filename}")
+                return {"success": False, "message": f"Année introuvable dans le fichier: {filename}"}
 
             year = int(match.group(1))
-
             # --- Read selected months ---
             for month in selected_months:
                 if month not in pd.ExcelFile(file, None).sheet_names:
                     continue
+                # Clean the dataframe
                 result = clean_dataframe(
                     pd.read_excel(file, sheet_name=month, usecols="A:H")
                 )
-
                 if not result["success"]:
-                    return {"success": False, "message": result["message"]}
-
+                    return {"success": False, "message": f"Erreur lors du nettoyage du dataframe: {result['message']}"}
                 df = (
                     result["df"].copy()
                     .assign(
@@ -73,39 +66,10 @@ def read_livraison_multi_year(files, selected_months):
                     )
                 )
                 dfs.append(df)
-
         final_df = pd.concat(dfs, ignore_index=True).sort_values(["YEAR", "MOIS_NUM"])
-        # .drop(columns="MOIS_NUM")
-
         return {"success": True, "data": final_df}
-
     except ValueError as err:
         return {"success": False, "message": str(err)}
-
-
-def read_livraison_files(excel_file, selected_months):
-    """
-    This function load multipla months in one df
-    """
-    dfs = []
-    for month in selected_months:
-        data = clean_dataframe(pd.read_excel(excel_file, sheet_name=month, usecols="A:H"))
-        if data["success"]:
-            df = data["df"]
-            df["MOIS"] = month
-            # --- Month order (French) ---
-            df["MOIS_NUM"] = df["MOIS"].map(mois_order)
-            df = df.sort_values("MOIS_NUM")             # .drop(columns=["MOIS_NUM"])
-
-            dfs.append(df)
-        else:
-            return {"success": False, "message": data["message"]}
-    try:
-        dfs = pd.concat(dfs, ignore_index=True)
-    except ValueError:
-        return {"success": False, "message": "Aucun mois sélectionné."}
-    else:
-        return {"success": True, "data": dfs}
 
 
 def clean_dataframe(df):
@@ -120,7 +84,7 @@ def clean_dataframe(df):
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     df = df[df["DATE"].notna()]     # Remove rows without a valid DATE (e.g. subtotal / footer rows)
-    df["OBSERVATION"] = df["OBSERVATION"].astype(str).replace("nan", "")
+    # df["OBSERVATION"] = df["OBSERVATION"].astype(str).replace("nan", "")
     df = df.fillna(0)
     return {"success": True, "df": df}
 
@@ -215,9 +179,9 @@ def get_day_details(clean_df, day, fields):
         .sum()
     )
     # try:
-        # daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
+    #     daily_details["OBSERVATION"] = daily_details["OBSERVATION"].astype("string")
     # except KeyError:
-        # pass
+    #     pass
 
     if day in daily_details["DATE"].values:
         return {"success": True, "data": daily_details[daily_details["DATE"] == day]}
@@ -230,6 +194,7 @@ def driver_observations(clean_df):
     Generate observations for each driver based on their performance.
     :clean_df: DataFrame
     """
+    clean_df["OBSERVATION"] = clean_df["OBSERVATION"].astype(str).replace("nan", "")
     driver_obs = clean_df.groupby(["LIVREUR"])["OBSERVATION"].sum()
     return driver_obs.reset_index()
 

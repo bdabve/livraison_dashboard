@@ -116,13 +116,7 @@ def merge_excels_with_sheetnames(input_folder, output_file):
         f for f in os.listdir(input_folder)
         if f.endswith((".xlsx", ".xls"))
     ])
-    print(excel_files)
-    # if len(excel_files) != len(sheet_names):
-        # raise ValueError(
-            # f"Number of files ({len(excel_files)}) "
-            # f"must match number of sheet names ({len(sheet_names)})"
-        # )
-
+    # Merge all files into a single Excel with sheet names prevendeur
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
         for file in excel_files:
             file_path = os.path.join(input_folder, file)

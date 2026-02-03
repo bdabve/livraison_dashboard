@@ -6,10 +6,13 @@
 # desc          :
 # ----------------------------------------------------------------------------
 
+import os
+import re
 import pandas as pd
-import utils
 import plotly.express as px
 import streamlit as st
+
+import utils
 import widgets
 
 # Page configuration
@@ -33,7 +36,6 @@ if not excel_file:
     st.warning("Please upload an Excel file to proceed.")
     st.stop()
 else:
-    import os, re
     filename = os.path.basename(excel_file.name)  # VENTE_JANVIER_2026.xlsx
     name, _ = os.path.splitext(filename)
     match = re.search(r"_([A-ZÉÈÊÎÔÛ]+)_(\d{4})$", name)
@@ -296,15 +298,6 @@ else:
             hide_index=True,
             width="stretch"
         )
-        # day_details = pd.pivot_table(
-            # day_details,
-            # index="DATE",
-            # values=fields,
-            # aggfunc="sum",
-            # margins=True, margins_name="TOTAL",
-            # fill_value=0,
-            # sort=False
-        # )
 st.divider()
 
 # ----------------------

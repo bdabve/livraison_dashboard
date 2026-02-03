@@ -7,7 +7,6 @@ import plotly.express as px
 @st.cache_data
 def load_date_from_excel(excel_file, selected_months):
     return utils.read_livraison_multi_year(excel_file, selected_months)
-    # return utils.read_livraison_files(excel_file, selected_months)
 
 
 # Page configuration
