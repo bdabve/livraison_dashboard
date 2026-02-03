@@ -189,3 +189,18 @@ for _, row in df_total_par_mois.iterrows():
         border=True,
     )
     st.divider()
+
+# ----------------------------------------------------------------------------
+# --- Accompte - Crédits - Versement Crédit ---
+# ---------------------------------------------
+st.space()
+st.subheader("📊 Détails des Accomptes et Crédits", divider="grey", width="content")
+etat_accompte = dfs.groupby(["LIVREUR", "YEAR", "MOIS_NUM", "MOIS"], as_index=False)["VERSEMENT"].sum()
+etat_accompte = etat_accompte[etat_accompte["LIVREUR"].isin(["ACCOMPTE", "CREDIT", "VERS. CREDIT"])]
+etat_accompte = etat_accompte.pivot_table(
+    index=["YEAR", "MOIS"],
+    columns="LIVREUR",
+    values="VERSEMENT",
+    fill_value=0,
+)
+st.dataframe(etat_accompte, width="stretch")

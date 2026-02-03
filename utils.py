@@ -56,7 +56,8 @@ def read_livraison_multi_year(files, selected_months):
                     pd.read_excel(file, sheet_name=month, usecols="A:H")
                 )
                 if not result["success"]:
-                    return {"success": False, "message": f"Erreur lors du nettoyage du dataframe: {result['message']}"}
+                    return {"success": False, "message": result["message"]}
+
                 df = (
                     result["df"].copy()
                     .assign(
@@ -84,7 +85,7 @@ def clean_dataframe(df):
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     df = df[df["DATE"].notna()]     # Remove rows without a valid DATE (e.g. subtotal / footer rows)
-    # df["OBSERVATION"] = df["OBSERVATION"].astype(str).replace("nan", "")
+    df["OBSERVATION"] = df["OBSERVATION"].astype(str).replace("nan", "")
     df = df.fillna(0)
     return {"success": True, "df": df}
 
@@ -194,7 +195,6 @@ def driver_observations(clean_df):
     Generate observations for each driver based on their performance.
     :clean_df: DataFrame
     """
-    clean_df["OBSERVATION"] = clean_df["OBSERVATION"].astype(str).replace("nan", "")
     driver_obs = clean_df.groupby(["LIVREUR"])["OBSERVATION"].sum()
     return driver_obs.reset_index()
 
