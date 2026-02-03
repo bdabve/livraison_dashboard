@@ -1,7 +1,11 @@
-import streamlit as st
+import os
+import re
 import pandas as pd
-import utils
+import streamlit as st
 import plotly.express as px
+
+import utils
+from livreur_tab import render_livreur_tab
 
 
 @st.cache_data
@@ -14,27 +18,53 @@ st.set_page_config(page_title="Livraison Dashboard", page_icon=":bar_chart:", la
 st.title(":bar_chart: _Livraison Dashboard Multiple Mois_", text_alignment="center")
 st.space()
 
-# Load data
-excel_file = st.file_uploader(
+# Upload Excel files
+excel_files = st.file_uploader(
     "Télécharger le fichier Excel de Livraison",
+    type=["xlsx"],
     accept_multiple_files=True,
-    type=["xlsx"]
 )
 
-if not excel_file:
+if not excel_files:
     st.warning("Please upload an Excel file to proceed.")
     st.stop()
-else:
-    months = list()
-    for file in excel_file:
-        f = pd.ExcelFile(file)
-        for sheet in f.sheet_names:
-            months.append(sheet)
-    # Select Months
-    selected_months = st.multiselect("Select months", months, default=months)
 
+years = set()
+months = set()
 
-data = load_date_from_excel(excel_file, selected_months)
+for file in excel_files:
+    filename = os.path.basename(file.name)
+
+    # Extract year from filename
+    match = re.search(r"(\d{4})", filename)
+    if match:
+        years.add(int(match.group(1)))
+    else:
+        st.warning(f"Année introuvable dans le fichier : {filename}")
+        continue
+
+    # Read sheet names as months
+    xls = pd.ExcelFile(file)
+    months.update(xls.sheet_names)
+
+years_column, months_column = st.columns(2)
+with years_column:
+    # Year selection
+    selected_years = st.multiselect(
+        "Select years",
+        options=sorted(years),
+        default=sorted(years),
+    )
+
+with months_column:
+    # Month selection
+    selected_months = st.multiselect(
+        "Select months",
+        options=sorted(months),
+        default=sorted(months),
+    )
+
+data = load_date_from_excel(excel_files, selected_months)
 if not data["success"]:
     st.warning(data["message"])
     st.stop()
@@ -42,14 +72,21 @@ else:
     dfs = data["data"]
 
 st.divider()
+
+# Create Two Tabs
+multi_mois_tab, livreur_tab = st.tabs(
+    ["Livraison Multi Mois", "🚚 Rapport Livreur"],
+    default="Livraison Multi Mois"
+)
+
 # ----------------------------------------------------------------------------
 #
 # ---- ETAT GLOBAL -------
 fields = ["YEAR", "MOIS", "MOIS_NUM", "DATE", "LIVREUR", "T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"]
-st.subheader("📊 État Global des Livraisons")
-st.space()
-# st.dataframe(dfs[fields], width="stretch", hide_index=True)
-st.divider()
+multi_mois_tab.subheader("📊 État Global des Livraisons")
+multi_mois_tab.space()
+# multi_moi_tabdataframe(dfs[fields], width="multi_moi_tabetch", hide_index=True)
+multi_mois_tab.divider()
 #
 # ---- Pivot Table Yearly
 dfs["YEAR"] = dfs["YEAR"].astype(str)
@@ -62,9 +99,9 @@ year_pivot = pd.pivot_table(
     fill_value=0,
     sort=False,
 )
-st.markdown("##### 📋 Tableau Croisé des Livraisons par Année et Mois")
-st.dataframe(year_pivot, width="stretch")
-st.divider()
+multi_mois_tab.markdown("##### 📋 Tableau Croisé des Livraisons par Année et Mois")
+multi_mois_tab.dataframe(year_pivot, width="stretch")
+multi_mois_tab.divider()
 #
 # --- Pivot Table Mois Livreur---
 pivot = pd.pivot_table(
@@ -76,13 +113,13 @@ pivot = pd.pivot_table(
     fill_value=0,
     sort=False,
 )
-st.space()
-st.markdown("##### 📋 Tableau Croisé des Livraisons par Mois et Livreur")
-st.dataframe(pivot, width="stretch")
+multi_mois_tab.space()
+multi_mois_tab.markdown("##### 📋 Tableau Croisé des Livraisons par Mois et Livreur")
+multi_mois_tab.dataframe(pivot, width="stretch")
 
 # --- Chart
-st.space()
-st.subheader("📈 Visualisation des Livraisons par Mois")
+multi_mois_tab.space()
+multi_mois_tab.subheader("📈 Visualisation des Livraisons par Mois")
 chart_data = (
     dfs
     .groupby(["YEAR", "MOIS", "MOIS_NUM"], as_index=False)
@@ -107,19 +144,8 @@ chart_by_mois = px.histogram(
     },
     height=400,
 )
-st.plotly_chart(chart_by_mois, width="stretch")
+multi_mois_tab.plotly_chart(chart_by_mois, width="stretch")
 
-# ----------------------------------------------------------------------------
-# --- Filter Month ---
-#
-months = dfs.sort_values("MOIS")["MOIS"].unique()
-selected_month = st.sidebar.selectbox(
-    "📅 Choisir le mois",
-    months,
-    index=len(months) - 1  # default = latest month
-)
-st.sidebar.header(f"**{selected_month}**", text_alignment="center")
-st.sidebar.divider()
 # ----------------------------------------------------------------------------
 # --- Etat par MOIS ---
 df_total_par_mois = (
@@ -150,21 +176,21 @@ df_grand_total = pd.DataFrame({
 })
 
 # ----------------
-st.space()
-st.subheader("📊 Totaux mensuels _VERSEMENT_ & _COMMANDES_", divider="grey", width="content")
+multi_mois_tab.space()
+multi_mois_tab.subheader("📊 Totaux mensuels _VERSEMENT_ & _COMMANDES_", divider="grey", width="content")
 
 # -- Display Grande Total --
 for _, row in df_grand_total.iterrows():
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = multi_mois_tab.columns(3)
     col1.metric("💰 Versement", f"{row['versement']:,.0f} DA", border=True)
     col2.metric("📋 Commandes", f"{row['commandes']:,.0f} DA", border=True)
     col3.metric("💸 Charges", f"{row['charges']:,.0f} DA", border=True)
-    st.divider()
+    multi_mois_tab.divider()
 
 # -- Display Total par MOIS --
 for _, row in df_total_par_mois.iterrows():
-    st.markdown(f"##### 📆 {row['MOIS']}")
-    col1, col2, col3 = st.columns(3)
+    multi_mois_tab.markdown(f"##### 📆 {row['MOIS']}")
+    col1, col2, col3 = multi_mois_tab.columns(3)
     col1.metric(
         "💰 Versement",
         f"{row['versement']:,.0f} DA",
@@ -188,13 +214,13 @@ for _, row in df_total_par_mois.iterrows():
         delta=f"{row['delta_charges_pct']:.1f}%" if not pd.isna(row["delta_charges_pct"]) else None,
         border=True,
     )
-    st.divider()
+    multi_mois_tab.divider()
 
 # ----------------------------------------------------------------------------
 # --- Accompte - Crédits - Versement Crédit ---
 # ---------------------------------------------
-st.space()
-st.subheader("📊 Détails des Accomptes et Crédits", divider="grey", width="content")
+multi_mois_tab.space()
+multi_mois_tab.subheader("📊 Détails des Accomptes et Crédits", divider="grey", width="content")
 etat_accompte = dfs.groupby(["LIVREUR", "YEAR", "MOIS_NUM", "MOIS"], as_index=False)["VERSEMENT"].sum()
 etat_accompte = etat_accompte[etat_accompte["LIVREUR"].isin(["ACCOMPTE", "CREDIT", "VERS. CREDIT"])]
 etat_accompte = etat_accompte.pivot_table(
@@ -203,4 +229,20 @@ etat_accompte = etat_accompte.pivot_table(
     values="VERSEMENT",
     fill_value=0,
 )
-st.dataframe(etat_accompte, width="stretch")
+multi_mois_tab.dataframe(etat_accompte, width="stretch")
+
+# ----------------------------------------------------------------------------
+# ----> LIVREUR TAB <----
+# -----------------------
+
+render_livreur_tab(livreur_tab, dfs)
+
+# hide some stylesheet
+# hide_st_style = '''
+# <style>
+#     #MainMenu { visibility: hidden; }
+#     header { visibility: hidden; }
+#     footer { visibility: hidden; }
+# </style>
+# '''
+# st.markdown(hide_st_style, unsafe_allow_html=True)

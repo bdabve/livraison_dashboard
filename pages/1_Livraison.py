@@ -24,9 +24,10 @@ st.space()
 # Load the dataframe with pandas and cache it with streamlit to avoid reload again and again
 @st.cache_data
 def load_data_from_excel(excel_file, sheet_name):
-    df = pd.read_excel(excel_file, sheet_name=sheet_name, usecols="A:H", nrows=243)
-    data = utils.clean_dataframe(df)
-    return data
+    # df = pd.read_excel(excel_file, sheet_name=sheet_name, usecols="A:H", nrows=243)
+    # data = utils.clean_dataframe(df)
+    # return data
+    return utils.read_livraison_multi_year(excel_file, sheet_name)
 
 
 # Load data
@@ -39,13 +40,12 @@ else:
     filename = os.path.basename(excel_file.name)  # VENTE_JANVIER_2026.xlsx
     name, _ = os.path.splitext(filename)
     match = re.search(r"_([A-ZÉÈÊÎÔÛ]+)_(\d{4})$", name)
-    if not match:
-        pass
+    if not match: pass
     year = int(match.group(2))
 
     # Todo input year
-    year_selection = st.selectbox("Sélectionner l'année:", options=[year], index=0, key="year_select")
-    st.text(f"Year: {year_selection}")
+    # year_selection = st.selectbox("Sélectionner l'année:", options=[year], index=0, key="year_select")
+    # st.text(f"Year: {year_selection}")
     f = pd.ExcelFile(excel_file)
     sheets = f.sheet_names
     st.space("medium")
@@ -58,7 +58,7 @@ if st.session_state.get("sheet_name"):
         st.warning(data["message"])
         st.stop()
     else:
-        df = data["df"]
+        df = data["data"]
 else:
     st.warning("Please select a sheet to proceed.")
     st.stop()

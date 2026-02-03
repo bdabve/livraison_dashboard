@@ -36,7 +36,8 @@ def read_livraison_multi_year(files, selected_months):
     if not selected_months:
         return {"success": False, "message": "Aucun mois sélectionné."}
 
-    files = list(files) if not isinstance(files, (list, tuple)) else files
+    files = [files] if not isinstance(files, (list, tuple)) else files
+    selected_months = [selected_months] if isinstance(selected_months, str) else selected_months
     dfs = []
     try:
         for file in files:
@@ -49,6 +50,7 @@ def read_livraison_multi_year(files, selected_months):
             year = int(match.group(1))
             # --- Read selected months ---
             for month in selected_months:
+                print(f"Processing {month}.")
                 if month not in pd.ExcelFile(file, None).sheet_names:
                     continue
                 # Clean the dataframe
