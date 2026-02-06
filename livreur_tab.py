@@ -53,35 +53,58 @@ def render_livreur_tab(livreur_tab, dfs):
     )
 
     # --- Etat Excel Like
-    etat_excel = utils.etat_excel_like_db(df_livreur)
+    etat_excel = utils.etat_excel_like_db(df_livreur, livreur)
 
     livreur_tab.subheader("💰 _Etat Mensuel_", text_alignment="left", divider="gray", width="stretch")
 
     # Metrics for Etats Excel
     credit_column, vers_credit_column, acompte_column = livreur_tab.columns(3)      # Columns
-    credit_column.metric("💲 *CRÉDIT:* ", etat_excel.get("CREDIT", 0), border=True)
-    vers_credit_column.metric("💰 *Versements CRÉDIT:* ", etat_excel.get('VERS. CREDIT', 0), border=True)
-    acompte_column.metric("💳 *ACCOMPTE:* ", etat_excel.get('ACCOMPTE', 0), border=True)
+    credit_column.metric(
+        "💲 *CRÉDIT:* ",
+        etat_excel.loc[etat_excel["TYPE"] == "CREDIT", "MONTANT"].squeeze(),
+        border=True
+    )
+    vers_credit_column.metric(
+        "💰 *Versements CRÉDIT:* ",
+        etat_excel.loc[etat_excel["TYPE"] == "VERS. CREDIT", "MONTANT"].squeeze(),
+        border=True
+    )
+    acompte_column.metric(
+        "💳 *ACCOMPTE:* ",
+        etat_excel.loc[etat_excel["TYPE"] == "ACCOMPTE", "MONTANT"].squeeze(),
+        border=True
+    )
     #
     command_column, versement_column, charges_column = livreur_tab.columns(3)        # Columns
-    command_column.metric("🛵 *TOTAL COMMANDE:* ", etat_excel.get('TOTAL COMMANDE', 0), border=True)
-    versement_column.metric("🚚 *VERSEMENT:* ", etat_excel.get('VERSEMENT', 0), border=True)
-    charges_column.metric("💸 *CHARGES:* ", etat_excel.get('CHARGES', 0), border=True)
+    command_column.metric(
+        "🛵 *TOTAL COMMANDE:* ",
+        etat_excel.loc[etat_excel["TYPE"] == "TOTAL COMMANDE", "MONTANT"].squeeze(),
+        border=True
+    )
+    versement_column.metric(
+        "🚚 *VERSEMENT:* ",
+        etat_excel.loc[etat_excel["TYPE"] == "VERSEMENT", "MONTANT"].squeeze(),
+        border=True
+    )
+    charges_column.metric(
+        "💸 *CHARGES:* ",
+        etat_excel.loc[etat_excel["TYPE"] == "CHARGES", "MONTANT"].squeeze(),
+        border=True
+    )
     livreur_tab.divider()
+    # ----------------------------------------------------------------------------------
 
-    # Convert to Pandas dataframe
-    etat_excel_pd = pd.DataFrame(etat_excel.items(), columns=["TYPE", "MONTANT"])
-    etat_excel_pd["MONTANT"] = etat_excel_pd["MONTANT"].abs()       # convert to absolute values
-
+    # ----------------------------------------------------------------------------------
+    # Chart
     etat_types = livreur_tab.pills(
         "Sélectionner les types à afficher dans le graphique:",
-        options=etat_excel_pd["TYPE"].tolist(),
-        default=etat_excel_pd["TYPE"].tolist(),
+        options=etat_excel["TYPE"].tolist(),
+        default=etat_excel["TYPE"].tolist(),
         selection_mode="multi",
         key="etat_types"
     )
 
-    etat_excel_pd = etat_excel_pd.query('TYPE == @etat_types')
+    etat_excel_pd = etat_excel.query('TYPE == @etat_types')
     fig_etat = px.pie(
         etat_excel_pd,
         names="TYPE",
@@ -141,14 +164,24 @@ def render_livreur_tab(livreur_tab, dfs):
     livreur_tab.plotly_chart(fig_versement, width="stretch")
     livreur_tab.divider()
 
-    # --------------------------------
-    # ---< Etat Total par Livreur >---
-    # --------------------------------
+    # ------------------------------------
+    # ---< Etat Versement par Livreur >---
+    # ------------------------------------
     livreur_tab.space()
     livreur_tab.subheader("🚚 _Etat Versement Par Livreur_", divider="gray", width="content")
     fields = ["VERSEMENT", "CHARGE"]
     sum_by_driver = utils.sum_by_driver(df_livreur, fields, livreur_selection=livreur)
     sum_by_driver = sum_by_driver.sort_values(by="VERSEMENT", ascending=False)
+    pivot_sumbydriver = pd.pivot_table(
+        sum_by_driver,
+        index="LIVREUR",
+        values=["VERSEMENT", "CHARGE"],
+        aggfunc="sum",
+        margins=True, margins_name="TOTAL",
+        fill_value=0,
+        sort=False
+    )
+
     # Graphique Versement par Livreur
     if len(sum_by_driver) == 0:
         livreur_tab.warning("Aucun livreur sélectionné.")
@@ -169,7 +202,7 @@ def render_livreur_tab(livreur_tab, dfs):
             legend_title="Type",
         )
         # display the chart
-        widgets.table_chart_column(livreur_tab, sum_by_driver.reset_index(), fig_livreur)
+        widgets.table_chart_column(livreur_tab, pivot_sumbydriver.reset_index(), fig_livreur)
     livreur_tab.divider()
 
     # ----------------------------------------

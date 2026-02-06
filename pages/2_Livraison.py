@@ -230,7 +230,23 @@ etat_accompte = etat_accompte.pivot_table(
     fill_value=0,
 )
 multi_mois_tab.dataframe(etat_accompte, width="stretch")
+multi_mois_tab.divider()
+# ----------------------------------------------------------------------------
+# TODO:  Build totals by livreur
+df_total_par_livreur = (
+    dfs
+    .loc[dfs["LIVREUR"].isin(["MOHAMED", "AMINE", "TOUFIK", "REDA"])]
+    .groupby(["LIVREUR", "MOIS_NUM"], as_index=False)
+    .agg(
+        versement=("VERSEMENT", "sum"),
+        # commandes=("T. COMMANDE", "sum"),
+        # charges=("CHARGE", "sum")
+    )
+    .sort_values("versement", ascending=False)
+    .set_index("LIVREUR")
+)
 
+multi_mois_tab.dataframe(df_total_par_livreur, width="stretch")
 # ----------------------------------------------------------------------------
 # ----> LIVREUR TAB <----
 # -----------------------

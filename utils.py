@@ -92,7 +92,52 @@ def clean_dataframe(df):
     return {"success": True, "df": df}
 
 
-def etat_excel_like_db(clean_df):
+def etat_excel_like_db(df, selected_livreurs):
+    """
+    Return Excel-like financial state:
+    ACCOMPTE, CREDIT, VERS. CREDIT, VERSEMENT, TOTAL COMMANDE, CHARGES
+    """
+
+    # --- Filter once ---
+    df_sel = df[df["LIVREUR"].isin(selected_livreurs)]
+
+    # --- Daily sums ---
+    daily_totals = (
+        df_sel
+        .groupby("DATE", as_index=False)
+        .agg(
+            VERSEMENT=("VERSEMENT", "sum"),
+            TOTAL_COMMANDE=("T.LOGICIEL", "sum"),
+            CHARGES=("CHARGE", "sum"),
+        )
+    )
+
+    # --- ACCOMPTE / CREDIT / VERS. CREDIT ---
+    credit_types = ["ACCOMPTE", "CREDIT", "VERS. CREDIT"]
+
+    credit_totals = (
+        df[df["LIVREUR"].isin(credit_types)]
+        .groupby("LIVREUR")["VERSEMENT"]
+        .sum()
+    )
+
+    # --- Final Excel-like dict ---
+    etat_excel = {
+        "ACCOMPTE": float(credit_totals.get("ACCOMPTE", 0)),
+        "CREDIT": float(credit_totals.get("CREDIT", 0)),
+        "VERS. CREDIT": float(credit_totals.get("VERS. CREDIT", 0)),
+        "VERSEMENT": float(daily_totals["VERSEMENT"].sum()),
+        "TOTAL COMMANDE": float(daily_totals["TOTAL_COMMANDE"].sum()),
+        "CHARGES": float(daily_totals["CHARGES"].sum()),
+    }
+
+    return pd.DataFrame(
+        etat_excel.items(),
+        columns=["TYPE", "MONTANT"]
+    )
+
+
+def etat_excel_like_db_(clean_df):
     """
     this function return
     ["ACCOMTE", "CREDIT", "VERSEMENT CREDIT", "CHARGE"] to display in QLabel Excel Etat
@@ -254,7 +299,7 @@ def read_sales_files(files):
         return {"success": False, "message": str(err)}
 
 
-def build_totals_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
+def build_totals_mois(df_mois: pd.DataFrame, selected_prevendeur) -> pd.DataFrame:
     """
     Totaux par MOIS avec variation par rapport au mois précédent.
     """
@@ -262,6 +307,7 @@ def build_totals_mois(df_mois: pd.DataFrame) -> pd.DataFrame:
     # --- Group & aggregate ---
     df_total = (
         df_mois
+        .loc[df_mois["PREVENDEUR"].isin(selected_prevendeur)]
         .groupby(["YEAR", "MOIS_NUM", "MOIS"], as_index=False)
         .agg(
             livraison=("Total livraison (DA)", "sum"),
