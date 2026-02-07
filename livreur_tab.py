@@ -112,7 +112,7 @@ def render_livreur_tab(livreur_tab, dfs):
         template="plotly_white",
     )
     # Display table and chart side by side
-    widgets.table_chart_column(livreur_tab, etat_excel_pd, fig_etat)
+    widgets.table_chart_column(livreur_tab, etat_excel_pd, fig_etat, chart_key="etat_excel")
     livreur_tab.divider()
 
     # ----------------------------------
@@ -202,7 +202,7 @@ def render_livreur_tab(livreur_tab, dfs):
             legend_title="Type",
         )
         # display the chart
-        widgets.table_chart_column(livreur_tab, pivot_sumbydriver.reset_index(), fig_livreur)
+        widgets.table_chart_column(livreur_tab, pivot_sumbydriver.reset_index(), fig_livreur, chart_key="livreur_versement")
     livreur_tab.divider()
 
     # ----------------------------------------
@@ -248,7 +248,7 @@ def render_livreur_tab(livreur_tab, dfs):
         # title="<b>Retour par Livreur</b>",
         template="plotly_white",
     )
-    widgets.table_chart_column(livreur_tab, sum_retour_by_driver, retour_chart)
+    widgets.table_chart_column(livreur_tab, sum_retour_by_driver, retour_chart, chart_key="livreur_retour")
     livreur_tab.divider()
 
     # -------------------------------------

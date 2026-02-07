@@ -80,13 +80,11 @@ multi_mois_tab, livreur_tab = st.tabs(
 )
 
 # ----------------------------------------------------------------------------
-#
-# ---- ETAT GLOBAL -------
+# == ETAT GLOBAL Par MOIS ==
+# --------------------------
 fields = ["YEAR", "MOIS", "MOIS_NUM", "DATE", "LIVREUR", "T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"]
-multi_mois_tab.subheader("📊 État Global des Livraisons")
+multi_mois_tab.subheader("📊 État Global des Livraisons", divider="gray", width="content")
 multi_mois_tab.space()
-# multi_moi_tabdataframe(dfs[fields], width="multi_moi_tabetch", hide_index=True)
-multi_mois_tab.divider()
 #
 # ---- Pivot Table Yearly
 dfs["YEAR"] = dfs["YEAR"].astype(str)
@@ -101,22 +99,6 @@ year_pivot = pd.pivot_table(
 )
 multi_mois_tab.markdown("##### 📋 Tableau Croisé des Livraisons par Année et Mois")
 multi_mois_tab.dataframe(year_pivot, width="stretch")
-multi_mois_tab.divider()
-#
-# --- Pivot Table Mois Livreur---
-pivot = pd.pivot_table(
-    dfs,
-    index=["MOIS", "LIVREUR"],
-    values=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"],
-    aggfunc="sum",
-    margins=True, margins_name="Total Général",
-    fill_value=0,
-    sort=False,
-)
-multi_mois_tab.space()
-multi_mois_tab.markdown("##### 📋 Tableau Croisé des Livraisons par Mois et Livreur")
-multi_mois_tab.dataframe(pivot, width="stretch")
-
 # --- Chart
 multi_mois_tab.space()
 multi_mois_tab.subheader("📈 Visualisation des Livraisons par Mois")
@@ -145,7 +127,50 @@ chart_by_mois = px.histogram(
     height=400,
 )
 multi_mois_tab.plotly_chart(chart_by_mois, width="stretch")
-
+multi_mois_tab.divider()
+# ----------------------------------------------------------------------------
+# --- Pivot Table Mois Livreur---
+pivot = pd.pivot_table(
+    dfs,
+    index=["MOIS", "LIVREUR"],
+    values=["T. COMMANDE", "T.LOGICIEL", "VERSEMENT", "CHARGE"],
+    aggfunc="sum",
+    margins=True, margins_name="Total Général",
+    fill_value=0,
+    sort=False,
+)
+multi_mois_tab.space()
+multi_mois_tab.markdown("##### 📋 Tableau Croisé des Livraisons par Mois et Livreur")
+multi_mois_tab.dataframe(pivot, width="stretch")
+multi_mois_tab.divider()
+# ----------------------
+multiselect_livreur_column, select_month_column = multi_mois_tab.columns(2)
+with multiselect_livreur_column:
+    multiselect_livreur = st.multiselect(
+        "Sélectionner les livreurs à afficher",
+        options=sorted(dfs["LIVREUR"].unique()),
+        default=sorted(dfs["LIVREUR"].unique()),
+    )
+with select_month_column:
+    select_month = st.selectbox(
+        "Sélectionner le mois à afficher",
+        options=sorted(dfs["MOIS"].unique()),
+        index=0,
+    )
+filtered_pivot = (
+    pivot
+    .loc[
+        (pivot.index.get_level_values("LIVREUR").isin(multiselect_livreur))\
+        & (pivot.index.get_level_values("MOIS") == select_month)
+    ]
+)
+for _, row in filtered_pivot.iterrows():
+    multi_mois_tab.markdown(f"##### 📆 {row.name[0]} - {row.name[1]}")
+    col1, col2, col3 = multi_mois_tab.columns(3)
+    col1.metric("💰 Versement", f"{row['VERSEMENT']:,.0f} DA", border=True)
+    col2.metric("📋 Commandes", f"{row['T.LOGICIEL']:,.0f}", border=True)       # Commande == T. Logiciel
+    col3.metric("💸 Charges", f"{row['CHARGE']:,.0f} DA", border=True)
+    multi_mois_tab.divider()
 # ----------------------------------------------------------------------------
 # --- Etat par MOIS ---
 df_total_par_mois = (
@@ -231,22 +256,6 @@ etat_accompte = etat_accompte.pivot_table(
 )
 multi_mois_tab.dataframe(etat_accompte, width="stretch")
 multi_mois_tab.divider()
-# ----------------------------------------------------------------------------
-# TODO:  Build totals by livreur
-df_total_par_livreur = (
-    dfs
-    .loc[dfs["LIVREUR"].isin(["MOHAMED", "AMINE", "TOUFIK", "REDA"])]
-    .groupby(["LIVREUR", "MOIS_NUM"], as_index=False)
-    .agg(
-        versement=("VERSEMENT", "sum"),
-        # commandes=("T. COMMANDE", "sum"),
-        # charges=("CHARGE", "sum")
-    )
-    .sort_values("versement", ascending=False)
-    .set_index("LIVREUR")
-)
-
-multi_mois_tab.dataframe(df_total_par_livreur, width="stretch")
 # ----------------------------------------------------------------------------
 # ----> LIVREUR TAB <----
 # -----------------------

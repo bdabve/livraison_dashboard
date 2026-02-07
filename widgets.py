@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#
-# author        : el3arbi bdabve@gmail.com
-# created       :
-# desc          :
 # ----------------------------------------------------------------------------
 import streamlit as st
 
@@ -14,7 +10,10 @@ def two_chart_columns(root, chart, chart_2):
     chart2Column.plotly_chart(chart_2, width="stretch")
 
 
-def table_chart_column(root, df, chart):
+def table_chart_column(root, df, chart, chart_key):
+    """
+    :key: the key to use for the chart, to avoid caching issues when using multiple charts in the same page
+    """
     # Create two columns, One for table and one for figure
     table_column, chart_column = root.columns(2)
     with table_column:
