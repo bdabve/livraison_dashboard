@@ -130,14 +130,101 @@ def merge_excels_with_sheetnames(input_folder, output_file):
     print("Done ✅", output_file)
 
 
-if __name__ == '__main__':
-    # import dotenv
-    # dotenv.load_dotenv(dotenv.find_dotenv())
-    # username = os.getenv("triz_username")
-    # passwd = os.getenv('triz_password')
+from datetime import date, datetime
 
-    # driver = create_driver()
-    # result = login(driver, username, passwd)
+
+def faresse_etat(driver):
+    base_url = "http://51.255.79.241:8080/trizstock/faces/view/livraison/list.xhtml"
+
+    camions = {
+        "WALID": "8442-0000005",
+        "MOHAMED": "8442-0000006",
+        "FETHI": "8442-0000007",
+        "MM": "8442-0000010"
+    }
+
+    today = date.today()
+
+    # First day of current month
+    start_date = today.replace(day=1)
+
+    results = []
+
+    current = start_date
+    while current <= today:
+
+        # Format for URL (dd-mm-yyyy)
+        formatted_date = current.strftime("%d-%m-%Y")
+
+        daily_totals = {}
+
+        for prev, camion in camions.items():
+            url = (
+                f"{base_url}?"
+                f"{'camion=' + camion + '&' if camion else ''}"
+                f"datef={formatted_date}&dated={formatted_date}&statut=livrer"
+            )
+
+            driver.get(url)
+
+            total_livrer = driver.find_element(
+                By.XPATH,
+                '//*[@id="listeLiv:j_idt663:dataTable_foot"]/tr/td[7]'
+            )
+
+            clean_value = (
+                total_livrer.text
+                .replace('\u202f', '')
+                .replace('\u00a0', '')
+                .replace(' ', '')
+                .replace(',', '.')
+            )
+
+            daily_totals[prev] = float(clean_value)
+
+        results.append({
+            formatted_date: daily_totals
+        })
+
+        current = current.replace(day=current.day + 1)
+
+    return results
+
+
+def export_faress_etat_excel(data, filename="faresse_etat.xlsx"):
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Etat Livraison"
+
+    # Extract camion names dynamically
+    first_day = next(iter(data[0].values()))
+    camions = list(first_day.keys())
+
+    # Header row
+    headers = ["Date"] + camions
+    ws.append(headers)
+
+    # Data rows
+    for day_data in data:
+        date_str = next(iter(day_data.keys()))
+        totals = day_data[date_str]
+
+        row = [date_str] + [totals.get(camion, 0) for camion in camions]
+        ws.append(row)
+
+    wb.save(filename)
+    print(f"✅ Excel file created: {filename}")
+
+
+if __name__ == '__main__':
+    import dotenv
+    dotenv.load_dotenv(dotenv.find_dotenv())
+    username = os.getenv("triz_username")
+    passwd = os.getenv('triz_password')
+
+    driver = create_driver()
+    result = login(driver, username, passwd)
     # if result["success"]:
     #     # # ------
     #     print(result["message"])
@@ -147,7 +234,13 @@ if __name__ == '__main__':
     # else:
     #     print(result["message"])
 
-    input_folder = "./triz_downloads"
-    output_file = "VENTE_JANVIER_2026.xlsx"
-    # sheet_names = ["WALID", "MOHAMED", "FETHI", "MM", "VENTE"]
-    merge_excels_with_sheetnames(input_folder, output_file)
+    # input_folder = "./triz_downloads"
+    # output_file = "VENTE_JANVIER_2026.xlsx"
+    # # sheet_names = ["WALID", "MOHAMED", "FETHI", "MM", "VENTE"]
+    # merge_excels_with_sheetnames(input_folder, output_file)
+
+    # FARESSE ETAT
+    if result["success"]:
+        etat_faress = faresse_etat(driver)
+        export_faress_etat_excel(etat_faress)
+        print(etat_faress)
