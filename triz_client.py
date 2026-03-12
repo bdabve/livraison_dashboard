@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 # import time
 import os
+from datetime import date
 import pandas as pd
 import undetected_chromedriver as uc
 
@@ -130,10 +131,7 @@ def merge_excels_with_sheetnames(input_folder, output_file):
     print("Done ✅", output_file)
 
 
-from datetime import date, datetime
-
-
-def faresse_etat(driver):
+def faresse_etat(driver, start_date=None):
     base_url = "http://51.255.79.241:8080/trizstock/faces/view/livraison/list.xhtml"
 
     camions = {
@@ -146,7 +144,8 @@ def faresse_etat(driver):
     today = date.today()
 
     # First day of current month
-    start_date = today.replace(day=1)
+    if not start_date:
+        start_date = today.replace(day=1)
 
     results = []
 
@@ -223,7 +222,7 @@ if __name__ == '__main__':
     username = os.getenv("triz_username")
     passwd = os.getenv('triz_password')
 
-    driver = create_driver()
+    driver = create_driver(chrome_version=145)
     result = login(driver, username, passwd)
     # if result["success"]:
     #     # # ------
@@ -241,6 +240,6 @@ if __name__ == '__main__':
 
     # FARESSE ETAT
     if result["success"]:
-        etat_faress = faresse_etat(driver)
+        etat_faress = faresse_etat(driver, start_date=date(2026, 2, 18))
         export_faress_etat_excel(etat_faress)
         print(etat_faress)
